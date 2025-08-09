@@ -1,0 +1,110 @@
+import { useMemo, useState } from "react";
+import StatusToggle from "@/components/StatusToggle";
+import SettingsModal from "@/components/SettingsModal";
+import ProjectGrid from "@/components/ProjectGrid";
+import { useProjects } from "@/hooks/useProjects";
+import { ProjectFilter } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Settings, Plus } from "lucide-react";
+
+const Index = () => {
+  // Storage key can be customized in Settings
+  const [storageKey, setStorageKey] = useState<string>("pmapp:data");
+  const {
+    projects,
+    addProject,
+    updateProject,
+    deleteProject,
+    addTodo,
+    updateTodo,
+    deleteTodo,
+    reorderTodos,
+    addSubtask,
+    updateSubtask,
+    deleteSubtask,
+    reorderSubtasks,
+    computed,
+    importFromJSON,
+    exportToJSON,
+    setProjects,
+  } = useProjects(storageKey);
+
+  const [filter, setFilter] = useState<ProjectFilter>("active");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+
+  const stats = useMemo(() => computed, [computed]);
+
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between py-4">
+          <div>
+            <h1 className="text-2xl font-bold">项目管理应用</h1>
+            <p className="text-sm text-muted-foreground">项目卡片网格、待办/子任务、拖拽排序、导入导出、就地编辑</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <StatusToggle value={filter} onChange={setFilter} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="系统设置" onClick={() => setSettingsOpen(true)}>
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>系统设置</TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto py-6 space-y-6">
+        <section aria-label="添加新项目" className="flex flex-col sm:flex-row gap-2">
+          <Input
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            placeholder="输入项目名称后回车或点击添加"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newProjectName.trim()) {
+                addProject(newProjectName.trim());
+                setNewProjectName("");
+              }
+            }}
+          />
+          <Button onClick={() => { if (newProjectName.trim()) { addProject(newProjectName.trim()); setNewProjectName(""); } }}>
+            <Plus className="h-4 w-4 mr-1" /> 添加项目
+          </Button>
+        </section>
+
+        <ProjectGrid
+          projects={projects}
+          filter={filter}
+          onAddTodo={(projectId, text) => addTodo(projectId, text)}
+          onUpdateProject={(projectId, patch) => updateProject(projectId, patch)}
+          onDeleteProject={(projectId) => deleteProject(projectId)}
+          onUpdateTodo={(projectId, todoId, patch) => updateTodo(projectId, todoId, patch)}
+          onDeleteTodo={(projectId, todoId) => deleteTodo(projectId, todoId)}
+          onReorderTodos={(projectId, from, to) => reorderTodos(projectId, from, to)}
+          onAddSubtask={(projectId, todoId, text) => addSubtask(projectId, todoId, text)}
+          onUpdateSubtask={(projectId, todoId, subId, patch) => updateSubtask(projectId, todoId, subId, patch)}
+          onDeleteSubtask={(projectId, todoId, subId) => deleteSubtask(projectId, todoId, subId)}
+          onReorderSubtasks={(projectId, todoId, from, to) => reorderSubtasks(projectId, todoId, from, to)}
+        />
+      </main>
+
+      <SettingsModal
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        storageKey={storageKey}
+        onStorageKeyChange={setStorageKey}
+        onExport={() => exportToJSON()}
+        onImport={(json) => importFromJSON(json)}
+        onClear={() => setProjects([])}
+        stats={stats}
+      />
+    </div>
+  );
+};
+
+export default Index;
