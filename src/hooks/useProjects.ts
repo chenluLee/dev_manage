@@ -19,6 +19,7 @@ const demoProjects: Project[] = [
     isCompleted: false,
     createdAt: nowISO(),
     updatedAt: nowISO(),
+    order: 0,
     todos: [
       {
         id: uid(),
@@ -51,6 +52,7 @@ const demoProjects: Project[] = [
     isCompleted: false,
     createdAt: nowISO(),
     updatedAt: nowISO(),
+    order: 1,
     todos: [],
   },
 ];
@@ -83,6 +85,7 @@ export function useProjects(storageKey: string) {
       isCompleted: false,
       createdAt: nowISO(),
       updatedAt: nowISO(),
+      order: projects.length, // 新项目放在最后
       todos: [],
     };
     setProjects([project, ...projects]);
@@ -216,6 +219,36 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
+  // 项目重排序功能
+  const reorderProjects = useCallback((from: number, to: number) => {
+    const sortedProjects = [...projects].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const copy = sortedProjects.slice();
+    const [item] = copy.splice(from, 1);
+    copy.splice(to, 0, item);
+    
+    // 重新计算order值并更新时间戳
+    const reorderedProjects = copy.map((p, index) => ({
+      ...p,
+      order: index,
+      updatedAt: nowISO()
+    }));
+    
+    setProjects(reorderedProjects);
+  }, [projects, setProjects]);
+
+  // 更新项目排序（根据项目ID数组）
+  const updateProjectOrder = useCallback((projectOrders: {id: string, order: number}[]) => {
+    const updatedProjects = projects.map(project => {
+      const orderItem = projectOrders.find(p => p.id === project.id);
+      return orderItem ? {
+        ...project,
+        order: orderItem.order,
+        updatedAt: nowISO()
+      } : project;
+    });
+    setProjects(updatedProjects);
+  }, [projects, setProjects]);
+
   const computed = useMemo(() => ({
     total: projects.length,
     active: projects.filter(p => !p.isCompleted).length,
@@ -236,6 +269,8 @@ export function useProjects(storageKey: string) {
     updateSubtask,
     deleteSubtask,
     reorderSubtasks,
+    reorderProjects,
+    updateProjectOrder,
     computed,
     importFromJSON,
     exportToJSON,

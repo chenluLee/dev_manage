@@ -14,7 +14,9 @@ import {
   AlertDialogTitle, 
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, ChevronDown, ChevronUp, Edit3, MoreVertical, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Edit3, MoreVertical, Trash2, GripVertical } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import TodoList from "./TodoList";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,7 @@ interface Project {
   createdAt: string;
   updatedAt: string;
   todos: Todo[];
+  order: number;
 }
 
 interface Props {
@@ -43,13 +46,38 @@ interface Props {
   onUpdateSubtask: (todoId: string, subId: string, patch: Partial<Subtask>) => void;
   onDeleteSubtask: (todoId: string, subId: string) => void;
   onReorderSubtasks: (todoId: string, from: number, to: number) => void;
+  // 新增拖拽和折叠相关props
+  isDragging?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+  highlightedText?: string; // 用于搜索高亮
 }
 
 export default function ProjectCard(props: Props) {
-  const { project } = props;
-  const [expanded, setExpanded] = useState(true);
+  const { project, isDragging, isCollapsed, onToggleCollapse, highlightedText } = props;
+  
+  // 使用传入的isCollapsed，如果没有则使用内部状态
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  const expanded = isCollapsed !== undefined ? !isCollapsed : internalExpanded;
+  
   const [isHovered, setIsHovered] = useState(false);
   const completed = project.todos.filter(t => t.isCompleted).length;
+
+  // 集成拖拽功能
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id: project.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging || isSortableDragging ? 0.5 : 1,
+  };
 
   const [editingName, setEditingName] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
@@ -79,17 +107,55 @@ export default function ProjectCard(props: Props) {
     return null;
   };
 
+  // 搜索高亮功能
+  const highlightText = (text: string, highlight?: string) => {
+    if (!highlight || !highlight.trim()) return text;
+    
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return parts.map((part, index) => (
+      part.toLowerCase() === highlight.toLowerCase() ? 
+        <mark key={index} className="bg-yellow-200 text-yellow-900">{part}</mark> : 
+        part
+    ));
+  };
+
+  // 处理折叠展开逻辑
+  const handleToggleExpanded = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    } else {
+      setInternalExpanded(!expanded);
+    }
+  };
+
   return (
     <article 
-      className={cn("transition-shadow", "animate-enter")} 
+      ref={setNodeRef}
+      style={style}
+      className={cn("transition-all duration-200", "animate-enter")} 
       aria-label={`项目 ${project.name}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Card className={cn("bg-card/80 backdrop-blur-sm border-border hover:shadow-lg", "hover:shadow-[var(--shadow-elegant)]")}>
+      <Card className={cn("bg-card/80 backdrop-blur-sm border-border hover:shadow-lg", "hover:shadow-[var(--shadow-elegant)]", isDragging && "rotate-2 scale-105")}>
         <CardHeader className="flex flex-row items-start justify-between gap-2">
-          <div className="space-y-1 flex-1 min-w-0">
-            {editingName ? (
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            {/* 拖拽手柄 */}
+            <div 
+              {...attributes} 
+              {...listeners}
+              className={cn(
+                "flex-shrink-0 mt-1 cursor-grab active:cursor-grabbing transition-opacity",
+                "hover:text-muted-foreground text-muted-foreground/50",
+                (editingName || editingDesc) && "pointer-events-none opacity-30"
+              )}
+              aria-label="拖拽项目卡片"
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+
+            <div className="space-y-1 flex-1 min-w-0">
+              {editingName ? (
               <div className="space-y-1">
                 <input
                   ref={nameRef}
@@ -130,7 +196,7 @@ export default function ProjectCard(props: Props) {
                 title={project.name}
                 onDoubleClick={() => setEditingName(true)}
               >
-                {project.name}
+                {highlightText(project.name, highlightedText)}
               </CardTitle>
             )}
 
@@ -178,13 +244,14 @@ export default function ProjectCard(props: Props) {
                 title={project.description}
                 onDoubleClick={() => setEditingDesc(true)}
               >
-                {project.description || "双击添加描述"}
+                {project.description ? highlightText(project.description, highlightedText) : "双击添加描述"}
               </p>
             )}
 
-            <div className="flex items-center gap-2 pt-1">
-              <Badge variant="secondary" className={cn(project.isCompleted && "bg-success/15 text-success border-success/30")}>{project.isCompleted ? "已结束" : "进行中"}</Badge>
-              <Badge variant="outline">{completed}/{project.todos.length} 已完成</Badge>
+              <div className="flex items-center gap-2 pt-1">
+                <Badge variant="secondary" className={cn(project.isCompleted && "bg-success/15 text-success border-success/30")}>{project.isCompleted ? "已结束" : "进行中"}</Badge>
+                <Badge variant="outline">{completed}/{project.todos.length} 已完成</Badge>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -245,7 +312,7 @@ export default function ProjectCard(props: Props) {
               + 快速添加待办
             </button>
 
-            <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls={`todos-${project.id}`}>
+            <Button variant="outline" size="sm" onClick={handleToggleExpanded} aria-expanded={expanded} aria-controls={`todos-${project.id}`}>
               {expanded ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
               {expanded ? "收起" : "展开"}
             </Button>

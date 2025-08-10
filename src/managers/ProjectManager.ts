@@ -236,6 +236,26 @@ class ProjectManagerClass {
       };
     }
   }
+
+  // 更新项目排序
+  async updateOrder(projectOrders: {id: string, order: number}[]): Promise<boolean> {
+    try {
+      if (!projectOrders || projectOrders.length === 0) {
+        return false;
+      }
+
+      // 验证排序数据
+      for (const item of projectOrders) {
+        if (!item.id || typeof item.order !== 'number') {
+          throw new Error('无效的排序数据');
+        }
+      }
+
+      return true; // 验证成功，实际更新逻辑由调用方处理
+    } catch (error) {
+      throw new Error(`更新项目排序失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    }
+  }
 }
 
 export const ProjectManager = new ProjectManagerClass();

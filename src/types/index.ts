@@ -23,6 +23,7 @@ export interface Project {
   createdAt: string; // ISO
   updatedAt: string; // ISO
   todos: Todo[];
+  order: number; // 用于排序的权重字段
 }
 
 export type ProjectFilter = "active" | "completed";
@@ -35,6 +36,11 @@ export interface AppSettings {
   autoBackup: boolean;           // 自动备份
   backupInterval: number;        // 备份间隔（小时）
   lastBackupTime?: string;       // 上次备份时间 ISO
+  // 新增用户偏好字段
+  projectOrder: {id: string, order: number}[]; // 项目排序偏好
+  collapsedProjects: string[];   // 折叠的项目ID列表
+  searchHistory: string[];       // 搜索历史（最多5条）
+  statusFilter: ('active' | 'completed')[]; // 状态筛选偏好
 }
 
 export interface BackupMetadata {

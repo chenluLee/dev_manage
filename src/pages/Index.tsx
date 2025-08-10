@@ -3,6 +3,7 @@ import StatusToggle from "@/components/StatusToggle";
 import SettingsModal from "@/components/SettingsModal";
 import ProjectGrid from "@/components/ProjectGrid";
 import { useProjects } from "@/hooks/useProjects";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { ProjectFilter, AppSettings, AppData } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,11 +27,15 @@ const Index = () => {
     updateSubtask,
     deleteSubtask,
     reorderSubtasks,
+    reorderProjects,
+    updateProjectOrder,
     computed,
     importFromJSON,
     exportToJSON,
     setProjects,
   } = useProjects(storageKey);
+  
+  const { updateProjectOrder: updateUserPreferenceOrder } = useUserPreferences();
 
   const [filter, setFilter] = useState<ProjectFilter>("active");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -43,7 +48,12 @@ const Index = () => {
     showCompletedProjects: true,
     autoBackup: false,
     backupInterval: 24,
-    storagePath: ''
+    storagePath: '',
+    // 新增用户偏好字段
+    projectOrder: [],
+    collapsedProjects: [],
+    searchHistory: [],
+    statusFilter: ['active', 'completed']
   });
   
   // 存储路径状态
@@ -80,6 +90,35 @@ const Index = () => {
   const handleDataRestore = (data: AppData) => {
     setProjects(data.projects);
     setSettings(data.settings);
+  };
+  
+  // 处理项目重排序，同时更新用户偏好
+  const handleProjectReorder = (from: number, to: number) => {
+    try {
+      // 边界情况检查
+      if (from === to) return; // 如果位置相同，无需操作
+      if (from < 0 || to < 0) return; // 索引不能为负
+      if (from >= projects.length || to >= projects.length) return; // 索引不能超出范围
+      if (!projects || projects.length === 0) return; // 项目列表为空
+      
+      // 重排序项目
+      reorderProjects(from, to);
+      
+      // 更新用户偏好中的项目排序
+      const sortedProjects = [...projects].sort((a, b) => (a.order || 0) - (b.order || 0));
+      const copy = sortedProjects.slice();
+      const [item] = copy.splice(from, 1);
+      copy.splice(to, 0, item);
+      
+      const reorderedProjectOrders = copy.map((project, index) => ({
+        id: project.id,
+        order: index
+      }));
+      updateUserPreferenceOrder(reorderedProjectOrders);
+    } catch (error) {
+      console.error('项目重排序失败:', error);
+      // 可以在这里添加用户友好的错误提示
+    }
   };
 
   console.log("Projects loaded:", projects?.length || 0);
@@ -144,6 +183,7 @@ const Index = () => {
           onUpdateSubtask={(projectId, todoId, subId, patch) => updateSubtask(projectId, todoId, subId, patch)}
           onDeleteSubtask={(projectId, todoId, subId) => deleteSubtask(projectId, todoId, subId)}
           onReorderSubtasks={(projectId, todoId, from, to) => reorderSubtasks(projectId, todoId, from, to)}
+          onReorderProjects={handleProjectReorder}
         />
       </main>
 
