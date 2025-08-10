@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { BackupManagerModal } from '@/components/BackupManagerModal';
 import { StorageManager } from '@/managers/StorageManager';
 import { AppData, AppSettings, BackupMetadata } from '@/types';
@@ -96,7 +96,11 @@ describe('BackupManagerModal', () => {
   });
 
   it('should render backup manager modal', async () => {
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
+    });
 
     expect(screen.getByText('备份管理')).toBeInTheDocument();
     expect(screen.getByText('创建备份')).toBeInTheDocument();
@@ -104,7 +108,11 @@ describe('BackupManagerModal', () => {
   });
 
   it('should load and display backup list on open', async () => {
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
+    });
 
     await waitFor(() => {
       expect(mockStorageManager.getBackupList).toHaveBeenCalled();
@@ -127,7 +135,9 @@ describe('BackupManagerModal', () => {
       backups: []
     });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('暂无备份文件')).toBeInTheDocument();
@@ -144,7 +154,9 @@ describe('BackupManagerModal', () => {
       }
     });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('无法访问备份目录')).toBeInTheDocument();
@@ -157,7 +169,9 @@ describe('BackupManagerModal', () => {
       filename: 'backup_2024-01-03_10-00-00.json'
     });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     const createButton = screen.getByText('创建备份');
     fireEvent.click(createButton);
@@ -188,7 +202,9 @@ describe('BackupManagerModal', () => {
       }
     });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     const createButton = screen.getByText('创建备份');
     fireEvent.click(createButton);
@@ -204,7 +220,9 @@ describe('BackupManagerModal', () => {
     
     mockStorageManager.deleteBackup.mockResolvedValue({ success: true });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('backup_2024-01-02_10-00-00.json')).toBeInTheDocument();
@@ -225,7 +243,9 @@ describe('BackupManagerModal', () => {
   it('should not delete backup if not confirmed', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
     
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('backup_2024-01-02_10-00-00.json')).toBeInTheDocument();
@@ -247,7 +267,9 @@ describe('BackupManagerModal', () => {
       data: restoredData
     });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('backup_2024-01-02_10-00-00.json')).toBeInTheDocument();
@@ -271,7 +293,9 @@ describe('BackupManagerModal', () => {
   it('should not restore backup if not confirmed', async () => {
     vi.stubGlobal('confirm', vi.fn().mockReturnValue(false));
     
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('backup_2024-01-02_10-00-00.json')).toBeInTheDocument();
@@ -296,7 +320,9 @@ describe('BackupManagerModal', () => {
       }
     });
 
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('backup_2024-01-02_10-00-00.json')).toBeInTheDocument();
@@ -311,7 +337,9 @@ describe('BackupManagerModal', () => {
   });
 
   it('should refresh backup list', async () => {
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     const refreshButton = screen.getByText('刷新');
     fireEvent.click(refreshButton);
@@ -322,7 +350,9 @@ describe('BackupManagerModal', () => {
   });
 
   it('should display backup settings information', async () => {
-    render(<BackupManagerModal {...defaultProps} />);
+    await act(async () => {
+      render(<BackupManagerModal {...defaultProps} />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('自动备份：')).toBeInTheDocument();

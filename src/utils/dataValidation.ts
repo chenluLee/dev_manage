@@ -18,12 +18,33 @@ const DEFAULT_VALIDATION_CONTEXT: ValidationContext = {
   strictMode: true
 };
 
+// 类型守卫函数
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean';
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number';
+}
+
+function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 export class DataValidator {
   
   /**
    * 验证完整的AppData结构
    */
-  static validateAppData(data: any, context: Partial<ValidationContext> = {}): ValidationResult {
+  static validateAppData(data: unknown, context: Partial<ValidationContext> = {}): ValidationResult {
     const ctx = { ...DEFAULT_VALIDATION_CONTEXT, ...context };
     const result: ValidationResult = {
       valid: true,
@@ -32,20 +53,20 @@ export class DataValidator {
     };
 
     // 基本类型检查
-    if (!data || typeof data !== 'object') {
+    if (!isRecord(data)) {
       result.errors.push('数据必须是一个有效对象');
       result.valid = false;
       return result;
     }
 
     // 版本字段检查
-    if (!data.version || typeof data.version !== 'string') {
+    if (!data.version || !isString(data.version)) {
       result.errors.push('缺少版本字段或版本格式无效');
       result.valid = false;
     }
 
     // 项目数组检查
-    if (!data.projects || !Array.isArray(data.projects)) {
+    if (!data.projects || !isArray(data.projects)) {
       result.errors.push('缺少项目列表或项目列表格式无效');
       result.valid = false;
     } else {
@@ -58,7 +79,7 @@ export class DataValidator {
     }
 
     // 设置对象检查
-    if (!data.settings || typeof data.settings !== 'object') {
+    if (!data.settings || !isRecord(data.settings)) {
       result.errors.push('缺少设置对象或设置格式无效');
       result.valid = false;
     } else {
@@ -71,7 +92,7 @@ export class DataValidator {
     }
 
     // 元数据检查
-    if (!data.metadata || typeof data.metadata !== 'object') {
+    if (!data.metadata || !isRecord(data.metadata)) {
       result.errors.push('缺少元数据对象或元数据格式无效');
       result.valid = false;
     } else {
@@ -89,7 +110,7 @@ export class DataValidator {
   /**
    * 验证项目数组
    */
-  static validateProjects(projects: any[], context: ValidationContext): ValidationResult {
+  static validateProjects(projects: unknown[], context: ValidationContext): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
     const projectIds = new Set<string>();
 
@@ -105,7 +126,7 @@ export class DataValidator {
       }
 
       // ID唯一性检查
-      if (context.checkIds && project?.id) {
+      if (context.checkIds && isRecord(project) && isString(project.id)) {
         if (projectIds.has(project.id)) {
           result.errors.push(`项目ID重复: ${project.id}`);
           result.valid = false;
@@ -121,28 +142,28 @@ export class DataValidator {
   /**
    * 验证单个项目
    */
-  static validateProject(project: any, context: ValidationContext, index?: number): ValidationResult {
+  static validateProject(project: unknown, context: ValidationContext, index?: number): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
     const prefix = index !== undefined ? `项目 ${index + 1}` : '项目';
 
-    if (!project || typeof project !== 'object') {
+    if (!isRecord(project)) {
       result.errors.push(`${prefix}: 不是有效对象`);
       result.valid = false;
       return result;
     }
 
     // 必需字段检查
-    if (!project.id || typeof project.id !== 'string') {
+    if (!project.id || !isString(project.id)) {
       result.errors.push(`${prefix}: 缺少ID字段或ID格式无效`);
       result.valid = false;
     }
 
-    if (!project.name || typeof project.name !== 'string') {
+    if (!project.name || !isString(project.name)) {
       result.errors.push(`${prefix}: 缺少名称字段或名称格式无效`);
       result.valid = false;
     }
 
-    if (typeof project.isCompleted !== 'boolean') {
+    if (!isBoolean(project.isCompleted)) {
       result.errors.push(`${prefix}: 完成状态字段格式无效`);
       result.valid = false;
     }
@@ -157,11 +178,11 @@ export class DataValidator {
     }
 
     // Todo列表检查
-    if (!project.todos || !Array.isArray(project.todos)) {
+    if (!project.todos || !isArray(project.todos)) {
       result.errors.push(`${prefix}: 任务列表格式无效`);
       result.valid = false;
     } else {
-      const todoValidation = this.validateTodos(project.todos, context, project.name);
+      const todoValidation = this.validateTodos(project.todos, context, isString(project.name) ? project.name : undefined);
       result.errors.push(...todoValidation.errors);
       result.warnings.push(...todoValidation.warnings);
       if (!todoValidation.valid) {
@@ -175,7 +196,7 @@ export class DataValidator {
   /**
    * 验证Todo数组
    */
-  static validateTodos(todos: any[], context: ValidationContext, projectName?: string): ValidationResult {
+  static validateTodos(todos: unknown[], context: ValidationContext, projectName?: string): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
     const todoIds = new Set<string>();
 
@@ -191,7 +212,7 @@ export class DataValidator {
       }
 
       // ID唯一性检查
-      if (context.checkIds && todo?.id) {
+      if (context.checkIds && isRecord(todo) && isString(todo.id)) {
         if (todoIds.has(todo.id)) {
           result.errors.push(`任务ID重复: ${todo.id} (项目: ${projectName})`);
           result.valid = false;
@@ -207,35 +228,35 @@ export class DataValidator {
   /**
    * 验证单个Todo
    */
-  static validateTodo(todo: any, context: ValidationContext, index?: number, projectName?: string): ValidationResult {
+  static validateTodo(todo: unknown, context: ValidationContext, index?: number, projectName?: string): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
     const prefix = `任务 ${index !== undefined ? index + 1 : ''}${projectName ? ` (项目: ${projectName})` : ''}`;
 
-    if (!todo || typeof todo !== 'object') {
+    if (!isRecord(todo)) {
       result.errors.push(`${prefix}: 不是有效对象`);
       result.valid = false;
       return result;
     }
 
     // 必需字段检查
-    if (!todo.id || typeof todo.id !== 'string') {
+    if (!todo.id || !isString(todo.id)) {
       result.errors.push(`${prefix}: 缺少ID字段或ID格式无效`);
       result.valid = false;
     }
 
-    if (!todo.text || typeof todo.text !== 'string') {
+    if (!todo.text || !isString(todo.text)) {
       result.errors.push(`${prefix}: 缺少文本字段或文本格式无效`);
       result.valid = false;
     }
 
-    if (typeof todo.isCompleted !== 'boolean') {
+    if (!isBoolean(todo.isCompleted)) {
       result.errors.push(`${prefix}: 完成状态字段格式无效`);
       result.valid = false;
     }
 
     // 子任务检查
-    if (todo.subtasks && Array.isArray(todo.subtasks)) {
-      const subtaskValidation = this.validateSubtasks(todo.subtasks, context, todo.text);
+    if (todo.subtasks && isArray(todo.subtasks)) {
+      const subtaskValidation = this.validateSubtasks(todo.subtasks, context, isString(todo.text) ? todo.text : undefined);
       result.errors.push(...subtaskValidation.errors);
       result.warnings.push(...subtaskValidation.warnings);
       if (!subtaskValidation.valid) {
@@ -249,7 +270,7 @@ export class DataValidator {
   /**
    * 验证子任务数组
    */
-  static validateSubtasks(subtasks: any[], context: ValidationContext, todoText?: string): ValidationResult {
+  static validateSubtasks(subtasks: unknown[], context: ValidationContext, todoText?: string): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
     const subtaskIds = new Set<string>();
 
@@ -265,7 +286,7 @@ export class DataValidator {
       }
 
       // ID唯一性检查
-      if (context.checkIds && subtask?.id) {
+      if (context.checkIds && isRecord(subtask) && isString(subtask.id)) {
         if (subtaskIds.has(subtask.id)) {
           result.errors.push(`子任务ID重复: ${subtask.id} (任务: ${todoText})`);
           result.valid = false;
@@ -281,28 +302,28 @@ export class DataValidator {
   /**
    * 验证单个子任务
    */
-  static validateSubtask(subtask: any, context: ValidationContext, index?: number, todoText?: string): ValidationResult {
+  static validateSubtask(subtask: unknown, _context: ValidationContext, index?: number, todoText?: string): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
     const prefix = `子任务 ${index !== undefined ? index + 1 : ''}${todoText ? ` (任务: ${todoText})` : ''}`;
 
-    if (!subtask || typeof subtask !== 'object') {
+    if (!isRecord(subtask)) {
       result.errors.push(`${prefix}: 不是有效对象`);
       result.valid = false;
       return result;
     }
 
     // 必需字段检查
-    if (!subtask.id || typeof subtask.id !== 'string') {
+    if (!subtask.id || !isString(subtask.id)) {
       result.errors.push(`${prefix}: 缺少ID字段或ID格式无效`);
       result.valid = false;
     }
 
-    if (!subtask.text || typeof subtask.text !== 'string') {
+    if (!subtask.text || !isString(subtask.text)) {
       result.errors.push(`${prefix}: 缺少文本字段或文本格式无效`);
       result.valid = false;
     }
 
-    if (typeof subtask.isCompleted !== 'boolean') {
+    if (!isBoolean(subtask.isCompleted)) {
       result.errors.push(`${prefix}: 完成状态字段格式无效`);
       result.valid = false;
     }
@@ -313,28 +334,28 @@ export class DataValidator {
   /**
    * 验证应用设置
    */
-  static validateAppSettings(settings: any, context: ValidationContext): ValidationResult {
+  static validateAppSettings(settings: unknown, _context: ValidationContext): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
 
-    if (!settings || typeof settings !== 'object') {
+    if (!isRecord(settings)) {
       result.errors.push('设置必须是有效对象');
       result.valid = false;
       return result;
     }
 
     // 主题设置检查
-    if (settings.theme && !['light', 'dark', 'auto'].includes(settings.theme)) {
+    if (settings.theme && (!isString(settings.theme) || !['light', 'dark', 'auto'].includes(settings.theme))) {
       result.errors.push('主题设置值无效，支持: light, dark, auto');
       result.valid = false;
     }
 
     // 布尔值检查
-    if (settings.autoSave !== undefined && typeof settings.autoSave !== 'boolean') {
+    if (settings.autoSave !== undefined && !isBoolean(settings.autoSave)) {
       result.errors.push('自动保存设置格式无效');
       result.valid = false;
     }
 
-    if (settings.showCompletedProjects !== undefined && typeof settings.showCompletedProjects !== 'boolean') {
+    if (settings.showCompletedProjects !== undefined && !isBoolean(settings.showCompletedProjects)) {
       result.errors.push('显示完成项目设置格式无效');
       result.valid = false;
     }
@@ -345,10 +366,10 @@ export class DataValidator {
   /**
    * 验证元数据
    */
-  static validateMetadata(metadata: any, context: ValidationContext): ValidationResult {
+  static validateMetadata(metadata: unknown, _context: ValidationContext): ValidationResult {
     const result: ValidationResult = { valid: true, errors: [], warnings: [] };
 
-    if (!metadata || typeof metadata !== 'object') {
+    if (!isRecord(metadata)) {
       result.errors.push('元数据必须是有效对象');
       result.valid = false;
       return result;
@@ -364,11 +385,11 @@ export class DataValidator {
     }
 
     // 数字字段检查
-    if (metadata.totalProjects !== undefined && (typeof metadata.totalProjects !== 'number' || metadata.totalProjects < 0)) {
+    if (metadata.totalProjects !== undefined && (!isNumber(metadata.totalProjects) || metadata.totalProjects < 0)) {
       result.warnings.push('元数据项目总数格式无效');
     }
 
-    if (metadata.totalTodos !== undefined && (typeof metadata.totalTodos !== 'number' || metadata.totalTodos < 0)) {
+    if (metadata.totalTodos !== undefined && (!isNumber(metadata.totalTodos) || metadata.totalTodos < 0)) {
       result.warnings.push('元数据任务总数格式无效');
     }
 
@@ -378,8 +399,8 @@ export class DataValidator {
   /**
    * 检查日期字符串格式
    */
-  private static isValidDateString(dateStr: any): boolean {
-    if (typeof dateStr !== 'string') return false;
+  private static isValidDateString(dateStr: unknown): boolean {
+    if (!isString(dateStr)) return false;
     const date = new Date(dateStr);
     return !isNaN(date.getTime());
   }
@@ -387,17 +408,17 @@ export class DataValidator {
   /**
    * 数据清理和标准化
    */
-  static sanitizeAppData(data: any): AppData {
-    const sanitized = { ...data };
+  static sanitizeAppData(data: unknown): AppData {
+    const sanitized = isRecord(data) ? { ...data } : {};
 
     // 确保版本字段
-    if (!sanitized.version) {
+    if (!isString(sanitized.version)) {
       sanitized.version = '1.0.0';
     }
 
     // 清理项目数据
-    if (Array.isArray(sanitized.projects)) {
-      sanitized.projects = sanitized.projects.map((project: any, index: number) => 
+    if (isArray(sanitized.projects)) {
+      sanitized.projects = sanitized.projects.map((project: unknown, index: number) => 
         this.sanitizeProject(project, index)
       ).filter(Boolean);
     } else {
@@ -410,84 +431,92 @@ export class DataValidator {
     // 清理元数据
     sanitized.metadata = this.sanitizeMetadata(sanitized.metadata || {});
 
-    return sanitized as AppData;
+    return sanitized as unknown as AppData;
   }
 
-  private static sanitizeProject(project: any, index: number): Project | null {
-    if (!project || typeof project !== 'object') return null;
+  private static sanitizeProject(project: unknown, index: number): Project | null {
+    if (!isRecord(project)) return null;
 
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
 
-    sanitized.id = project.id || `project-${Date.now()}-${index}`;
-    sanitized.name = project.name || `未命名项目 ${index + 1}`;
-    sanitized.description = project.description || '';
-    sanitized.isCompleted = Boolean(project.isCompleted);
-    sanitized.createdAt = project.createdAt || new Date().toISOString();
-    sanitized.updatedAt = project.updatedAt || new Date().toISOString();
+    sanitized.id = isString(project.id) ? project.id : `project-${Date.now()}-${index}`;
+    sanitized.name = isString(project.name) ? project.name : `未命名项目 ${index + 1}`;
+    sanitized.description = isString(project.description) ? project.description : '';
+    sanitized.isCompleted = isBoolean(project.isCompleted) ? project.isCompleted : false;
+    sanitized.createdAt = isString(project.createdAt) ? project.createdAt : new Date().toISOString();
+    sanitized.updatedAt = isString(project.updatedAt) ? project.updatedAt : new Date().toISOString();
 
     // 清理Todo列表
-    if (Array.isArray(project.todos)) {
-      sanitized.todos = project.todos.map((todo: any, todoIndex: number) => 
-        this.sanitizeTodo(todo, todoIndex, sanitized.id)
+    if (isArray(project.todos)) {
+      sanitized.todos = project.todos.map((todo: unknown, todoIndex: number) => 
+        this.sanitizeTodo(todo, todoIndex, sanitized.id as string)
       ).filter(Boolean);
     } else {
       sanitized.todos = [];
     }
 
-    return sanitized as Project;
+    return sanitized as unknown as Project;
   }
 
-  private static sanitizeTodo(todo: any, index: number, projectId: string): Todo | null {
-    if (!todo || typeof todo !== 'object') return null;
+  private static sanitizeTodo(todo: unknown, index: number, projectId: string): Todo | null {
+    if (!isRecord(todo)) return null;
 
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
 
-    sanitized.id = todo.id || `todo-${Date.now()}-${index}`;
-    sanitized.text = todo.text || `未命名任务 ${index + 1}`;
-    sanitized.isCompleted = Boolean(todo.isCompleted);
-    sanitized.order = typeof todo.order === 'number' ? todo.order : index;
+    sanitized.id = isString(todo.id) ? todo.id : `todo-${Date.now()}-${index}`;
+    sanitized.text = isString(todo.text) ? todo.text : `未命名任务 ${index + 1}`;
+    sanitized.isCompleted = isBoolean(todo.isCompleted) ? todo.isCompleted : false;
+    sanitized.order = isNumber(todo.order) ? todo.order : index;
     sanitized.projectId = projectId;
 
     // 清理子任务
-    if (Array.isArray(todo.subtasks)) {
-      sanitized.subtasks = todo.subtasks.map((subtask: any, subtaskIndex: number) => 
-        this.sanitizeSubtask(subtask, subtaskIndex, sanitized.id)
+    if (isArray(todo.subtasks)) {
+      sanitized.subtasks = todo.subtasks.map((subtask: unknown, subtaskIndex: number) => 
+        this.sanitizeSubtask(subtask, subtaskIndex, sanitized.id as string)
       ).filter(Boolean);
     } else {
       sanitized.subtasks = [];
     }
 
-    return sanitized as Todo;
+    return sanitized as unknown as Todo;
   }
 
-  private static sanitizeSubtask(subtask: any, index: number, todoId: string): Subtask | null {
-    if (!subtask || typeof subtask !== 'object') return null;
+  private static sanitizeSubtask(subtask: unknown, index: number, todoId: string): Subtask | null {
+    if (!isRecord(subtask)) return null;
 
     return {
-      id: subtask.id || `subtask-${Date.now()}-${index}`,
-      text: subtask.text || `未命名子任务 ${index + 1}`,
-      isCompleted: Boolean(subtask.isCompleted),
-      order: typeof subtask.order === 'number' ? subtask.order : index,
+      id: isString(subtask.id) ? subtask.id : `subtask-${Date.now()}-${index}`,
+      text: isString(subtask.text) ? subtask.text : `未命名子任务 ${index + 1}`,
+      isCompleted: isBoolean(subtask.isCompleted) ? subtask.isCompleted : false,
+      order: isNumber(subtask.order) ? subtask.order : index,
       todoId: todoId
     };
   }
 
-  private static sanitizeAppSettings(settings: any): AppSettings {
+  private static sanitizeAppSettings(settings: unknown): AppSettings {
+    const settingsObj = isRecord(settings) ? settings : {};
+    
     return {
-      storagePath: settings.storagePath || undefined,
-      theme: ['light', 'dark', 'auto'].includes(settings.theme) ? settings.theme : 'auto',
-      autoSave: Boolean(settings.autoSave),
-      showCompletedProjects: Boolean(settings.showCompletedProjects)
+      storagePath: isString(settingsObj.storagePath) ? settingsObj.storagePath : undefined,
+      theme: isString(settingsObj.theme) && ['light', 'dark', 'auto'].includes(settingsObj.theme) 
+        ? settingsObj.theme as 'light' | 'dark' | 'auto' 
+        : 'auto',
+      autoSave: isBoolean(settingsObj.autoSave) ? settingsObj.autoSave : false,
+      showCompletedProjects: isBoolean(settingsObj.showCompletedProjects) ? settingsObj.showCompletedProjects : false,
+      autoBackup: isBoolean(settingsObj.autoBackup) ? settingsObj.autoBackup : false,
+      backupInterval: isNumber(settingsObj.backupInterval) && settingsObj.backupInterval > 0 ? settingsObj.backupInterval : 24
     };
   }
 
-  private static sanitizeMetadata(metadata: any): any {
+  private static sanitizeMetadata(metadata: unknown): Record<string, unknown> {
     const now = new Date();
+    const metadataObj = isRecord(metadata) ? metadata : {};
+    
     return {
-      createdAt: this.isValidDateString(metadata.createdAt) ? new Date(metadata.createdAt) : now,
-      lastModified: this.isValidDateString(metadata.lastModified) ? new Date(metadata.lastModified) : now,
-      totalProjects: typeof metadata.totalProjects === 'number' ? metadata.totalProjects : 0,
-      totalTodos: typeof metadata.totalTodos === 'number' ? metadata.totalTodos : 0
+      createdAt: this.isValidDateString(metadataObj.createdAt) ? new Date(metadataObj.createdAt as string) : now,
+      lastModified: this.isValidDateString(metadataObj.lastModified) ? new Date(metadataObj.lastModified as string) : now,
+      totalProjects: isNumber(metadataObj.totalProjects) ? metadataObj.totalProjects : 0,
+      totalTodos: isNumber(metadataObj.totalTodos) ? metadataObj.totalTodos : 0
     };
   }
 }

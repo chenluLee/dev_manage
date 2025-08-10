@@ -140,12 +140,12 @@ describe('StorageManager Backup Functionality', () => {
 
     // Mock directory handle
     const mockDirectoryHandle = createMockDirectoryHandle();
-    (StorageManager as any).directoryHandle = mockDirectoryHandle;
+    (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = mockDirectoryHandle;
   });
 
   afterEach(() => {
     // Clean up
-    (StorageManager as any).directoryHandle = null;
+    (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = null;
   });
 
   describe('isAutoBackupDue', () => {
@@ -203,7 +203,7 @@ describe('StorageManager Backup Functionality', () => {
       // Make getDirectoryHandle fail
       const mockDirectoryHandle = createMockDirectoryHandle();
       mockDirectoryHandle.getDirectoryHandle = vi.fn().mockRejectedValue(new Error('Permission denied'));
-      (StorageManager as any).directoryHandle = mockDirectoryHandle;
+      (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = mockDirectoryHandle;
       
       const result = await StorageManager.createBackup(mockData);
       
@@ -213,7 +213,7 @@ describe('StorageManager Backup Functionality', () => {
     });
 
     it('should fall back to download when no directory handle', async () => {
-      (StorageManager as any).directoryHandle = null;
+      (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = null;
       
       // Mock downloadExportedData
       vi.spyOn(StorageManager, 'downloadExportedData').mockResolvedValue({ success: true });
@@ -244,7 +244,7 @@ describe('StorageManager Backup Functionality', () => {
     it('should return empty list when no backups directory', async () => {
       const mockDirectoryHandle = createMockDirectoryHandle();
       mockDirectoryHandle.getDirectoryHandle = vi.fn().mockRejectedValue(new Error('NotFoundError'));
-      (StorageManager as any).directoryHandle = mockDirectoryHandle;
+      (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = mockDirectoryHandle;
       
       const result = await StorageManager.getBackupList();
       
@@ -253,7 +253,7 @@ describe('StorageManager Backup Functionality', () => {
     });
 
     it('should handle error when no directory handle', async () => {
-      (StorageManager as any).directoryHandle = null;
+      (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = null;
       
       const result = await StorageManager.getBackupList();
       
@@ -339,7 +339,7 @@ describe('StorageManager Backup Functionality', () => {
     it('should handle backup creation failure', async () => {
       const mockDirectoryHandle = createMockDirectoryHandle();
       mockDirectoryHandle.getDirectoryHandle = vi.fn().mockRejectedValue(new Error('Permission denied'));
-      (StorageManager as any).directoryHandle = mockDirectoryHandle;
+      (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = mockDirectoryHandle;
       
       const settings = { ...mockSettings, lastBackupTime: undefined };
       

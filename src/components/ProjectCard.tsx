@@ -48,6 +48,7 @@ interface Props {
 export default function ProjectCard(props: Props) {
   const { project } = props;
   const [expanded, setExpanded] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
   const completed = project.todos.filter(t => t.isCompleted).length;
 
   const [editingName, setEditingName] = useState(false);
@@ -79,10 +80,15 @@ export default function ProjectCard(props: Props) {
   };
 
   return (
-    <article className={cn("transition-shadow", "animate-enter")} aria-label={`项目 ${project.name}`}>
+    <article 
+      className={cn("transition-shadow", "animate-enter")} 
+      aria-label={`项目 ${project.name}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <Card className={cn("bg-card/80 backdrop-blur-sm border-border hover:shadow-lg", "hover:shadow-[var(--shadow-elegant)]")}>
         <CardHeader className="flex flex-row items-start justify-between gap-2">
-          <div className="space-y-1 min-w-0">
+          <div className="space-y-1 flex-1 min-w-0">
             {editingName ? (
               <div className="space-y-1">
                 <input
@@ -181,7 +187,7 @@ export default function ProjectCard(props: Props) {
               <Badge variant="outline">{completed}/{project.todos.length} 已完成</Badge>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="切换状态" onClick={() => props.onUpdateProject({ isCompleted: !project.isCompleted })}>
@@ -190,36 +196,42 @@ export default function ProjectCard(props: Props) {
               </TooltipTrigger>
               <TooltipContent>切换项目状态</TooltipContent>
             </Tooltip>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label="删除项目">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>删除项目</TooltipContent>
-                </Tooltip>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>确认删除项目</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    你确定要删除项目「{project.name}」吗？此操作将删除项目下的所有任务，且无法撤销。
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>取消</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={props.onDeleteProject}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    删除
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <Button variant="ghost" size="icon" aria-label="更多"><MoreVertical className="h-4 w-4" /></Button>
+            
+            {/* 操作按钮 - 悬停时从右侧滑入 */}
+            <div className={cn("expand-slide flex items-center gap-1 overflow-hidden", isHovered || editingName || editingDesc ? "w-20 opacity-100" : "w-0 opacity-0")}>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" aria-label="删除项目" className="transition-colors duration-200">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>删除项目</TooltipContent>
+                  </Tooltip>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>确认删除项目</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      你确定要删除项目「{project.name}」吗？此操作将删除项目下的所有任务，且无法撤销。
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>取消</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={props.onDeleteProject}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      删除
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <Button variant="ghost" size="icon" aria-label="更多" className="transition-colors duration-200">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
 

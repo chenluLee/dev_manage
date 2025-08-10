@@ -94,7 +94,7 @@ export class FormatConverter {
   /**
    * 检测文件格式
    */
-  static detectFormat(data: any): 'pmapp' | 'todoist' | 'trello' | 'unknown' {
+  static detectFormat(data: unknown): 'pmapp' | 'todoist' | 'trello' | 'unknown' {
     if (!data || typeof data !== 'object') {
       return 'unknown';
     }
@@ -127,7 +127,7 @@ export class FormatConverter {
   /**
    * 从Todoist格式转换
    */
-  static convertFromTodoist(todoistData: any): ConversionResult {
+  static convertFromTodoist(todoistData: unknown): ConversionResult {
     const warnings: string[] = [];
     
     try {
@@ -252,7 +252,7 @@ export class FormatConverter {
   /**
    * 从Trello格式转换
    */
-  static convertFromTrello(trelloData: any): ConversionResult {
+  static convertFromTrello(trelloData: unknown): ConversionResult {
     const warnings: string[] = [];
     
     try {
@@ -371,7 +371,7 @@ export class FormatConverter {
   /**
    * 通用转换入口
    */
-  static convertToAppData(data: any): ConversionResult {
+  static convertToAppData(data: unknown): ConversionResult {
     const format = this.detectFormat(data);
 
     switch (format) {
@@ -398,7 +398,7 @@ export class FormatConverter {
   /**
    * 获取格式信息
    */
-  static getFormatInfo(data: any): { format: string; description: string; confidence: number } {
+  static getFormatInfo(data: unknown): { format: string; description: string; confidence: number } {
     const format = this.detectFormat(data);
     
     const formatInfo = {

@@ -16,12 +16,12 @@ global.document = {
     appendChild: mockAppendChild,
     removeChild: mockRemoveChild,
   }
-} as any;
+} as unknown as Document;
 
 global.URL = {
   createObjectURL: mockCreateObjectURL,
   revokeObjectURL: mockRevokeObjectURL,
-} as any;
+} as unknown as typeof URL;
 
 describe('StorageManager - Import/Export', () => {
   const mockAppData: AppData = {
@@ -129,7 +129,7 @@ describe('StorageManager - Import/Export', () => {
         type: 'application/json',
         name: 'test.json',
         text: vi.fn().mockResolvedValue(JSON.stringify(mockAppData))
-      } as any;
+      } as unknown as File;
 
       const result = await StorageManager.importDataFromFile(mockFile);
       
@@ -142,7 +142,7 @@ describe('StorageManager - Import/Export', () => {
         type: 'text/plain',
         name: 'test.txt',
         text: vi.fn().mockResolvedValue('plain text')
-      } as any;
+      } as unknown as File;
 
       const result = await StorageManager.importDataFromFile(mockFile);
       
@@ -156,7 +156,7 @@ describe('StorageManager - Import/Export', () => {
         type: 'application/json',
         name: 'test.json',
         text: vi.fn().mockResolvedValue('invalid json{')
-      } as any;
+      } as unknown as File;
 
       const result = await StorageManager.importDataFromFile(mockFile);
       
@@ -177,7 +177,7 @@ describe('StorageManager - Import/Export', () => {
         type: 'application/json',
         name: 'test.json',
         text: vi.fn().mockResolvedValue(JSON.stringify(invalidData))
-      } as any;
+      } as unknown as File;
 
       const result = await StorageManager.importDataFromFile(mockFile);
       
@@ -191,7 +191,7 @@ describe('StorageManager - Import/Export', () => {
         type: '',
         name: 'test.json',
         text: vi.fn().mockResolvedValue(JSON.stringify(mockAppData))
-      } as any;
+      } as unknown as File;
 
       const result = await StorageManager.importDataFromFile(mockFile);
       

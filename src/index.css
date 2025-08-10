@@ -132,4 +132,64 @@ All colors MUST be HSL.
   .hover-scale {
     @apply transition-transform duration-200 hover:scale-105;
   }
+  
+  /* Enhanced hover effects for better UX */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  .fade-in-up {
+    animation: fadeInUp 0.4s ease-out;
+  }
+  
+  .action-button {
+    @apply transition-all duration-200 ease-out hover:scale-105 hover:brightness-110 active:scale-95;
+  }
+  
+  /* Subtle hover state for interactive elements */
+  .interactive-hover {
+    @apply transition-colors duration-200 hover:bg-accent/50 hover:text-accent-foreground;
+  }
+
+  /* Improved action expansion animations with better easing */
+  .expand-slide {
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1) 0.05s;
+  }
+  
+  .expand-slide-fast {
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1) 0.03s;
+  }
+
+  /* Content area adaptive transitions */
+  .content-expand {
+    transition: margin-right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer components {
+  /* Smooth fade transition for hoverable action groups */
+  .action-group {
+    @apply transition-all duration-200 ease-out;
+  }
+  
+  .action-group-hidden {
+    @apply opacity-0 pointer-events-none;
+  }
+  
+  .action-group-visible {
+    @apply opacity-100 pointer-events-auto;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

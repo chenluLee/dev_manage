@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { ProjectManager } from '@/managers/ProjectManager';
 import { StorageManager } from '@/managers/StorageManager';
 import type { Project } from '@/types';
@@ -270,7 +270,7 @@ describe('ProjectManager', () => {
         todos: []
       }];
 
-      (StorageManager.saveDataToDirectory as any).mockResolvedValue({ success: true });
+      (StorageManager.saveDataToDirectory as MockedFunction<typeof StorageManager.saveDataToDirectory>).mockResolvedValue({ success: true });
 
       const result = await ProjectManager.saveWithStorage(mockProjects);
 
@@ -285,7 +285,7 @@ describe('ProjectManager', () => {
         message: 'Save failed'
       };
 
-      (StorageManager.saveDataToDirectory as any).mockResolvedValue({ 
+      (StorageManager.saveDataToDirectory as MockedFunction<typeof StorageManager.saveDataToDirectory>).mockResolvedValue({ 
         success: false, 
         error: mockError 
       });
@@ -314,7 +314,7 @@ describe('ProjectManager', () => {
         metadata: {}
       };
 
-      (StorageManager.loadDataFromDirectory as any).mockResolvedValue({ data: mockData });
+      (StorageManager.loadDataFromDirectory as MockedFunction<typeof StorageManager.loadDataFromDirectory>).mockResolvedValue({ data: mockData });
 
       const result = await ProjectManager.loadFromStorage();
 
@@ -328,7 +328,7 @@ describe('ProjectManager', () => {
         message: 'Load failed'
       };
 
-      (StorageManager.loadDataFromDirectory as any).mockResolvedValue({ 
+      (StorageManager.loadDataFromDirectory as MockedFunction<typeof StorageManager.loadDataFromDirectory>).mockResolvedValue({ 
         data: null, 
         error: mockError 
       });

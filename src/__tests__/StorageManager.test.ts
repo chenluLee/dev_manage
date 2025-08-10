@@ -3,7 +3,7 @@
  * 测试存储路径管理功能
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type MockedFunction } from 'vitest';
 
 // Mock 全局 API
 const mockShowDirectoryPicker = vi.fn();
@@ -37,8 +37,17 @@ describe('StorageManager', () => {
     // 重置所有 mock
     vi.clearAllMocks();
     
+    // 清除目录句柄状态
+    (StorageManager as unknown as { directoryHandle: FileSystemDirectoryHandle | null }).directoryHandle = null;
+    
     // 默认设置 API 支持
     (window as Window & { showDirectoryPicker?: typeof mockShowDirectoryPicker }).showDirectoryPicker = mockShowDirectoryPicker;
+    
+    // 设置 navigator.storage.estimate 默认返回值
+    (navigator.storage.estimate as MockedFunction<any>).mockResolvedValue({
+      quota: 1000,
+      usage: 100 // 10% 使用率，健康状态
+    });
   });
 
   describe('isFileSystemAccessSupported', () => {
@@ -47,17 +56,17 @@ describe('StorageManager', () => {
     });
 
     it('应该在不支持 File System Access API 时返回 false', () => {
-      delete (window as any).showDirectoryPicker;
+      delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
       // 需要重新创建实例来测试
-      const testManager = new (StorageManager.constructor as any)();
+      const testManager = new (StorageManager.constructor as new () => typeof StorageManager)();
       expect(testManager.isFileSystemAccessSupported()).toBe(false);
     });
   });
 
   describe('requestDirectoryAccess', () => {
     it('应该在 API 不支持时返回错误', async () => {
-      delete (window as any).showDirectoryPicker;
-      const testManager = new (StorageManager.constructor as any)();
+      delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+      const testManager = new (StorageManager.constructor as new () => typeof StorageManager)();
       
       const result = await testManager.requestDirectoryAccess();
       
@@ -81,9 +90,9 @@ describe('StorageManager', () => {
     it('应该在成功选择目录时返回成功', async () => {
       const mockDirectoryHandle = {
         name: 'TestFolder',
-        getFileHandle: jest.fn(),
-        removeEntry: jest.fn()
-      };
+        getFileHandle: vi.fn(),
+        removeEntry: vi.fn()
+      } as FileSystemDirectoryHandle;
       
       mockShowDirectoryPicker.mockResolvedValueOnce(mockDirectoryHandle);
 
@@ -115,19 +124,19 @@ describe('StorageManager', () => {
 
     it('应该在目录可写时返回有效', async () => {
       const mockFileHandle = {
-        createWritable: jest.fn().mockResolvedValue({
-          write: jest.fn(),
-          close: jest.fn()
+        createWritable: vi.fn().mockResolvedValue({
+          write: vi.fn(),
+          close: vi.fn()
         })
       };
       
       const mockDirectoryHandle = {
         name: 'TestFolder',
-        getFileHandle: jest.fn().mockResolvedValue(mockFileHandle),
-        removeEntry: jest.fn()
+        getFileHandle: vi.fn().mockResolvedValue(mockFileHandle),
+        removeEntry: vi.fn()
       };
 
-      StorageManager.restoreDirectoryHandle(mockDirectoryHandle as any);
+      StorageManager.restoreDirectoryHandle(mockDirectoryHandle as FileSystemDirectoryHandle);
 
       const result = await StorageManager.validateDirectoryAccess();
 
@@ -139,8 +148,8 @@ describe('StorageManager', () => {
 
   describe('默认路径管理', () => {
     it('应该返回正确的默认路径', () => {
-      const mockGetItem = jest.fn().mockReturnValue(null);
-      (window.localStorage.getItem as jest.Mock) = mockGetItem;
+      const mockGetItem = vi.fn().mockReturnValue(null);
+      (window.localStorage.getItem as MockedFunction<any>) = mockGetItem;
 
       const defaultPath = StorageManager.getDefaultStoragePath();
 
@@ -183,8 +192,8 @@ describe('StorageManager', () => {
 
   describe('健康检查', () => {
     it('应该在 API 不支持时返回警告', async () => {
-      delete (window as any).showDirectoryPicker;
-      const testManager = new (StorageManager.constructor as any)();
+      delete (window as unknown as { showDirectoryPicker?: unknown }).showDirectoryPicker;
+      const testManager = new (StorageManager.constructor as new () => typeof StorageManager)();
       
       const result = await testManager.performHealthCheck();
       
@@ -193,7 +202,7 @@ describe('StorageManager', () => {
     });
 
     it('应该在存储配额不足时返回错误', async () => {
-      (navigator.storage.estimate as jest.Mock).mockResolvedValue({
+      (navigator.storage.estimate as MockedFunction<any>).mockResolvedValue({
         quota: 1000,
         usage: 950 // 95% 使用率
       });
@@ -205,7 +214,7 @@ describe('StorageManager', () => {
     });
 
     it('应该在存储配额警告阈值时返回警告', async () => {
-      (navigator.storage.estimate as jest.Mock).mockResolvedValue({
+      (navigator.storage.estimate as MockedFunction<any>).mockResolvedValue({
         quota: 1000,
         usage: 800 // 80% 使用率
       });
@@ -239,18 +248,18 @@ describe('StorageManager', () => {
 
     it('应该在目录句柄存在时尝试保存数据', async () => {
       const mockFileHandle = {
-        createWritable: jest.fn().mockResolvedValue({
-          write: jest.fn(),
-          close: jest.fn()
+        createWritable: vi.fn().mockResolvedValue({
+          write: vi.fn(),
+          close: vi.fn()
         })
       };
       
       const mockDirectoryHandle = {
         name: 'TestFolder',
-        getFileHandle: jest.fn().mockResolvedValue(mockFileHandle)
+        getFileHandle: vi.fn().mockResolvedValue(mockFileHandle)
       };
 
-      StorageManager.restoreDirectoryHandle(mockDirectoryHandle as any);
+      StorageManager.restoreDirectoryHandle(mockDirectoryHandle as FileSystemDirectoryHandle);
 
       const testData = {
         version: '1.0',
@@ -275,10 +284,10 @@ describe('StorageManager', () => {
       
       const mockDirectoryHandle = {
         name: 'TestFolder',
-        getFileHandle: jest.fn().mockRejectedValue(notFoundError)
+        getFileHandle: vi.fn().mockRejectedValue(notFoundError)
       };
 
-      StorageManager.restoreDirectoryHandle(mockDirectoryHandle as any);
+      StorageManager.restoreDirectoryHandle(mockDirectoryHandle as FileSystemDirectoryHandle);
 
       const result = await StorageManager.loadDataFromDirectory();
 

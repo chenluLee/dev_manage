@@ -3,14 +3,15 @@ import StatusToggle from "@/components/StatusToggle";
 import SettingsModal from "@/components/SettingsModal";
 import ProjectGrid from "@/components/ProjectGrid";
 import { useProjects } from "@/hooks/useProjects";
-import { ProjectFilter } from "@/types";
+import { ProjectFilter, AppSettings, AppData } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Settings, Plus } from "lucide-react";
 
 const Index = () => {
-  // Storage key can be customized in Settings
+  console.log("Index component rendering...");
+  
   const [storageKey, setStorageKey] = useState<string>("pmapp:data");
   const {
     projects,
@@ -34,8 +35,54 @@ const Index = () => {
   const [filter, setFilter] = useState<ProjectFilter>("active");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  
+  // 应用设置状态
+  const [settings, setSettings] = useState<AppSettings>({
+    theme: 'auto',
+    autoSave: true,
+    showCompletedProjects: true,
+    autoBackup: false,
+    backupInterval: 24,
+    storagePath: ''
+  });
+  
+  // 存储路径状态
+  const [storagePath, setStoragePath] = useState<string>('');
 
   const stats = useMemo(() => computed, [computed]);
+  
+  // 当前应用数据
+  const currentData: AppData = useMemo(() => ({
+    version: '1.0.0',
+    projects: projects,
+    settings: settings,
+    metadata: {
+      createdAt: new Date(),
+      lastModified: new Date(),
+      totalProjects: projects.length,
+      totalTodos: projects.reduce((acc, p) => acc + p.todos.length, 0)
+    }
+  }), [projects, settings]);
+  
+  // 更新设置的函数
+  const handleSettingsUpdate = (newSettings: AppSettings) => {
+    setSettings(newSettings);
+    // 这里可以添加保存到localStorage的逻辑
+  };
+  
+  // 存储路径变化处理
+  const handleStoragePathChange = (path: string) => {
+    setStoragePath(path);
+    setSettings(prev => ({ ...prev, storagePath: path }));
+  };
+  
+  // 数据恢复函数（可选）
+  const handleDataRestore = (data: AppData) => {
+    setProjects(data.projects);
+    setSettings(data.settings);
+  };
+
+  console.log("Projects loaded:", projects?.length || 0);
 
   return (
     <div className="min-h-screen">
@@ -60,7 +107,8 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto py-6 space-y-6">
-        <section aria-label="添加新项目" className="flex flex-col sm:flex-row gap-2">
+        {/* 添加项目输入区域 */}
+        <section className="flex flex-col sm:flex-row gap-2">
           <Input
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
@@ -72,11 +120,17 @@ const Index = () => {
               }
             }}
           />
-          <Button onClick={() => { if (newProjectName.trim()) { addProject(newProjectName.trim()); setNewProjectName(""); } }}>
+          <Button onClick={() => { 
+            if (newProjectName.trim()) { 
+              addProject(newProjectName.trim()); 
+              setNewProjectName(""); 
+            } 
+          }}>
             <Plus className="h-4 w-4 mr-1" /> 添加项目
           </Button>
         </section>
 
+        {/* 项目网格 */}
         <ProjectGrid
           projects={projects}
           filter={filter}
@@ -98,10 +152,16 @@ const Index = () => {
         onOpenChange={setSettingsOpen}
         storageKey={storageKey}
         onStorageKeyChange={setStorageKey}
+        storagePath={storagePath}
+        onStoragePathChange={handleStoragePathChange}
         onExport={() => exportToJSON()}
         onImport={(json) => importFromJSON(json)}
         onClear={() => setProjects([])}
         stats={stats}
+        settings={settings}
+        onSettingsUpdate={handleSettingsUpdate}
+        currentData={currentData}
+        onDataRestore={handleDataRestore}
       />
     </div>
   );

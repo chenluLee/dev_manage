@@ -22,14 +22,60 @@ const mockIDBRequest = {
   dispatchEvent: vi.fn(),
 };
 
+const mockIDBObjectStore = {
+  name: 'handles',
+  keyPath: null,
+  indexNames: [],
+  transaction: null,
+  add: vi.fn(() => ({ ...mockIDBRequest })),
+  clear: vi.fn(() => ({ ...mockIDBRequest })),
+  count: vi.fn(() => ({ ...mockIDBRequest })),
+  createIndex: vi.fn(),
+  delete: vi.fn(() => ({ ...mockIDBRequest })),
+  deleteIndex: vi.fn(),
+  get: vi.fn(() => {
+    const request = { ...mockIDBRequest };
+    setTimeout(() => {
+      request.result = null;
+      request.readyState = 'done';
+      if (request.onsuccess) {
+        request.onsuccess({ target: request } as unknown as Event);
+      }
+    }, 0);
+    return request;
+  }),
+  getAll: vi.fn(() => ({ ...mockIDBRequest })),
+  getAllKeys: vi.fn(() => ({ ...mockIDBRequest })),
+  getKey: vi.fn(() => ({ ...mockIDBRequest })),
+  index: vi.fn(),
+  openCursor: vi.fn(() => ({ ...mockIDBRequest })),
+  openKeyCursor: vi.fn(() => ({ ...mockIDBRequest })),
+  put: vi.fn(() => ({ ...mockIDBRequest }))
+};
+
+const mockIDBTransaction = {
+  db: null,
+  error: null,
+  mode: 'readonly',
+  objectStoreNames: ['handles'],
+  onabort: null,
+  oncomplete: null,
+  onerror: null,
+  abort: vi.fn(),
+  objectStore: vi.fn(() => mockIDBObjectStore),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+  dispatchEvent: vi.fn()
+};
+
 const mockIDBDatabase = {
   name: 'test-db',
   version: 1,
-  objectStoreNames: [],
+  objectStoreNames: ['handles'],
   close: vi.fn(),
-  createObjectStore: vi.fn(),
+  createObjectStore: vi.fn(() => mockIDBObjectStore),
   deleteObjectStore: vi.fn(),
-  transaction: vi.fn(),
+  transaction: vi.fn(() => mockIDBTransaction),
   addEventListener: vi.fn(),
   removeEventListener: vi.fn(),
   dispatchEvent: vi.fn(),
@@ -48,7 +94,7 @@ Object.defineProperty(window, 'indexedDB', {
         request.result = mockIDBDatabase;
         request.readyState = 'done';
         if (request.onsuccess) {
-          request.onsuccess({ target: request } as any);
+          request.onsuccess({ target: request } as unknown as Event);
         }
       }, 0);
       return request;
@@ -58,7 +104,7 @@ Object.defineProperty(window, 'indexedDB', {
       setTimeout(() => {
         request.readyState = 'done';
         if (request.onsuccess) {
-          request.onsuccess({ target: request } as any);
+          request.onsuccess({ target: request } as unknown as Event);
         }
       }, 0);
       return request;
