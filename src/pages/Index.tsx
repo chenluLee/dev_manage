@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import StatusToggle from "@/components/StatusToggle";
 import SettingsModal from "@/components/SettingsModal";
 import ProjectGrid from "@/components/ProjectGrid";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Settings, Plus } from "lucide-react";
+import { StorageManager } from "@/managers/StorageManager";
 
 const Index = () => {
   console.log("Index component rendering...");
@@ -56,8 +57,21 @@ const Index = () => {
     statusFilter: ['active', 'completed']
   });
   
-  // 存储路径状态
+  // 存储路径状态 - 从StorageManager初始化
   const [storagePath, setStoragePath] = useState<string>('');
+  
+  // 组件挂载时初始化存储路径状态
+  useEffect(() => {
+    const initializeStoragePath = () => {
+      const currentPath = StorageManager.getSelectedDirectoryName();
+      if (currentPath) {
+        setStoragePath(currentPath);
+        setSettings(prev => ({ ...prev, storagePath: currentPath }));
+      }
+    };
+    
+    initializeStoragePath();
+  }, []);
 
   const stats = useMemo(() => computed, [computed]);
   
@@ -81,9 +95,18 @@ const Index = () => {
   };
   
   // 存储路径变化处理
-  const handleStoragePathChange = (path: string) => {
+  const handleStoragePathChange = async (path: string) => {
     setStoragePath(path);
     setSettings(prev => ({ ...prev, storagePath: path }));
+    
+    // 如果选择了新的存储路径，重新加载数据
+    if (path && loadProjects) {
+      try {
+        await loadProjects();
+      } catch (error) {
+        console.error('重新加载项目数据失败:', error);
+      }
+    }
   };
   
   // 数据恢复函数（可选）
@@ -93,7 +116,7 @@ const Index = () => {
   };
   
   // 处理项目重排序，同时更新用户偏好
-  const handleProjectReorder = (from: number, to: number) => {
+  const handleProjectReorder = async (from: number, to: number) => {
     try {
       // 边界情况检查
       if (from === to) return; // 如果位置相同，无需操作
@@ -102,7 +125,7 @@ const Index = () => {
       if (!projects || projects.length === 0) return; // 项目列表为空
       
       // 重排序项目
-      reorderProjects(from, to);
+      await reorderProjects(from, to);
       
       // 更新用户偏好中的项目排序
       const sortedProjects = [...projects].sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -152,17 +175,27 @@ const Index = () => {
             value={newProjectName}
             onChange={(e) => setNewProjectName(e.target.value)}
             placeholder="输入项目名称后回车或点击添加"
-            onKeyDown={(e) => {
+            onKeyDown={async (e) => {
               if (e.key === 'Enter' && newProjectName.trim()) {
-                addProject(newProjectName.trim());
-                setNewProjectName("");
+                try {
+                  await addProject(newProjectName.trim());
+                  setNewProjectName("");
+                } catch (error) {
+                  console.error('添加项目失败:', error);
+                  alert(error instanceof Error ? error.message : '添加项目失败');
+                }
               }
             }}
           />
-          <Button onClick={() => { 
-            if (newProjectName.trim()) { 
-              addProject(newProjectName.trim()); 
-              setNewProjectName(""); 
+          <Button onClick={async () => { 
+            if (newProjectName.trim()) {
+              try {
+                await addProject(newProjectName.trim()); 
+                setNewProjectName("");
+              } catch (error) {
+                console.error('添加项目失败:', error);
+                alert(error instanceof Error ? error.message : '添加项目失败');
+              }
             } 
           }}>
             <Plus className="h-4 w-4 mr-1" /> 添加项目
@@ -196,7 +229,7 @@ const Index = () => {
         onStoragePathChange={handleStoragePathChange}
         onExport={() => exportToJSON()}
         onImport={(json) => importFromJSON(json)}
-        onClear={() => setProjects([])}
+        onClear={async () => await setProjects([])}
         stats={stats}
         settings={settings}
         onSettingsUpdate={handleSettingsUpdate}

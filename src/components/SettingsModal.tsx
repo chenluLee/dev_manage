@@ -144,7 +144,7 @@ export default function SettingsModal({
                   </>
                 )}
                 <span className="text-sm text-muted-foreground flex-1">
-                  {storagePath || "未选择（使用浏览器本地存储）"}
+                  {storagePath ? `已选择：${storagePath}` : "未选择（使用浏览器本地存储）"}
                 </span>
               </div>
               
@@ -205,8 +205,16 @@ export default function SettingsModal({
                 选择文件夹后，数据将保存到该位置，方便多设备同步
               </p>
               
-              <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                <strong>默认路径:</strong> {StorageManager.getDefaultStoragePath()}
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                  <strong>当前存储位置:</strong> {storagePath ? `文件系统：${storagePath}` : "浏览器本地存储 (localStorage)"}
+                </div>
+                
+                {!storagePath && (
+                  <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded border-l-2 border-blue-200">
+                    <strong>提示:</strong> 选择文件夹可启用跨设备数据同步
+                  </div>
+                )}
               </div>
             </div>
           </div>

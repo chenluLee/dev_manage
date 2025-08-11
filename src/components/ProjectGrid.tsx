@@ -105,7 +105,7 @@ export default function ProjectGrid({
         items={filtered.map(p => p.id)} 
         strategy={rectSortingStrategy}
       >
-        <section aria-label="项目卡片网格" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4">
+        <section aria-label="项目卡片网格" className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
           {filtered.map((p) => (
             <ProjectCard
               key={p.id}

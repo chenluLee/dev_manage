@@ -267,16 +267,16 @@ export default function ProjectCard(props: Props) {
             {/* 操作按钮 - 悬停时从右侧滑入 */}
             <div className={cn("expand-slide flex items-center gap-1 overflow-hidden", isHovered || editingName || editingDesc ? "w-20 opacity-100" : "w-0 opacity-0")}>
               <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="icon" aria-label="删除项目" className="transition-colors duration-200">
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>删除项目</TooltipContent>
-                  </Tooltip>
-                </AlertDialogTrigger>
+                    </AlertDialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>删除项目</TooltipContent>
+                </Tooltip>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>确认删除项目</AlertDialogTitle>

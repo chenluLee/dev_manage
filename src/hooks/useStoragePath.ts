@@ -8,12 +8,26 @@ export function useStoragePath(settings: AppSettings, updateSettings: (settings:
 
   const storagePath = settings.storagePath || '';
 
-  const updateStoragePath = useCallback((path: string) => {
+  const updateStoragePath = useCallback(async (path: string) => {
     updateSettings({
       ...settings,
       storagePath: path
     });
     setStorageError('');
+    
+  }, [settings, updateSettings]);
+
+  const clearStoragePath = useCallback(async () => {
+    try {
+      await StorageManager.clearStoragePath();
+      updateSettings({
+        ...settings,
+        storagePath: ''
+      });
+      setStorageError('');
+    } catch (error) {
+      setStorageError('清除存储路径失败');
+    }
   }, [settings, updateSettings]);
 
   const validateCurrentPath = useCallback(async () => {
@@ -55,6 +69,7 @@ export function useStoragePath(settings: AppSettings, updateSettings: (settings:
   return {
     storagePath,
     updateStoragePath,
+    clearStoragePath,
     storageError,
     setStorageError,
     isValidating,

@@ -1,6 +1,7 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import { useLocalStorage } from "./useLocalStorage";
-import { Project, Todo, Subtask } from "@/types";
+import { Project, Todo, Subtask, AppData, AppSettings } from "@/types";
+import { StorageManager } from "@/managers/StorageManager";
 
 function uid() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -58,9 +59,79 @@ const demoProjects: Project[] = [
 ];
 
 export function useProjects(storageKey: string) {
-  const { value: projects, setValue: setProjects, importFromJSON, exportToJSON } = useLocalStorage<Project[]>(storageKey, demoProjects);
+  const { value: localProjects, setValue: setLocalProjects, importFromJSON: importLocalJSON, exportToJSON: exportLocalJSON } = useLocalStorage<Project[]>(storageKey, demoProjects);
+  
+  // 统一的项目状态，优先从文件系统加载
+  const [projects, setProjectsState] = useState<Project[]>(localProjects);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // 从存储中加载数据（优先文件系统，降级到localStorage）
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // 首先尝试从文件系统加载
+      if (StorageManager.isFileSystemAccessSupported() && StorageManager.getSelectedDirectoryName()) {
+        const result = await StorageManager.loadDataFromDirectory();
+        if (result.data?.projects) {
+          setProjectsState(result.data.projects);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // 降级到localStorage
+      setProjectsState(localProjects);
+    } catch (error) {
+      console.warn('加载项目数据失败，使用localStorage数据:', error);
+      setProjectsState(localProjects);
+    }
+    setIsLoading(false);
+  }, [localProjects]);
+  
+  // 保存数据（同时保存到文件系统和localStorage）
+  const saveProjects = useCallback(async (newProjects: Project[]) => {
+    // 立即更新本地状态
+    setProjectsState(newProjects);
+    setLocalProjects(newProjects);
+    
+    // 如果支持文件系统访问，也保存到文件系统
+    if (StorageManager.isFileSystemAccessSupported() && StorageManager.getSelectedDirectoryName()) {
+      try {
+        const appData: AppData = {
+          version: '1.0.0',
+          projects: newProjects,
+          settings: {
+            theme: 'auto',
+            autoSave: true,
+            showCompletedProjects: true,
+            storagePath: StorageManager.getSelectedDirectoryName() || ''
+          } as AppSettings,
+          metadata: {
+            createdAt: new Date(),
+            lastModified: new Date(),
+            totalProjects: newProjects.length,
+            totalTodos: newProjects.reduce((acc, p) => acc + p.todos.length, 0)
+          }
+        };
+        
+        await StorageManager.saveDataToDirectory(appData);
+      } catch (error) {
+        console.warn('保存到文件系统失败，仅保存到localStorage:', error);
+      }
+    }
+  }, [setLocalProjects]);
+  
+  // 组件挂载时加载数据
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+  
+  // 包装setProjects函数以使用新的保存逻辑
+  const setProjects = useCallback(async (newProjects: Project[]) => {
+    await saveProjects(newProjects);
+  }, [saveProjects]);
 
-  const addProject = useCallback((name: string) => {
+  const addProject = useCallback(async (name: string) => {
     // 验证项目名称
     if (!name || name.trim().length === 0) {
       throw new Error('项目名称不能为空');
@@ -88,10 +159,10 @@ export function useProjects(storageKey: string) {
       order: projects.length, // 新项目放在最后
       todos: [],
     };
-    setProjects([project, ...projects]);
+    await setProjects([project, ...projects]);
   }, [projects, setProjects]);
 
-  const updateProject = useCallback((id: string, patch: Partial<Project>) => {
+  const updateProject = useCallback(async (id: string, patch: Partial<Project>) => {
     // 验证更新数据
     if (patch.name !== undefined) {
       if (!patch.name || patch.name.trim().length === 0) {
@@ -117,15 +188,15 @@ export function useProjects(storageKey: string) {
       throw new Error('项目描述不能超过500个字符');
     }
 
-    setProjects(projects.map(p => p.id === id ? { ...p, ...patch, updatedAt: nowISO() } : p));
+    await setProjects(projects.map(p => p.id === id ? { ...p, ...patch, updatedAt: nowISO() } : p));
   }, [projects, setProjects]);
 
-  const deleteProject = useCallback((id: string) => {
-    setProjects(projects.filter(p => p.id !== id));
+  const deleteProject = useCallback(async (id: string) => {
+    await setProjects(projects.filter(p => p.id !== id));
   }, [projects, setProjects]);
 
-  const addTodo = useCallback((projectId: string, text: string) => {
-    setProjects(projects.map(p => {
+  const addTodo = useCallback(async (projectId: string, text: string) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       const order = p.todos.length;
       const todo: Todo = { id: uid(), text, isCompleted: false, order, projectId, subtasks: [] };
@@ -133,8 +204,8 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
-  const updateTodo = useCallback((projectId: string, todoId: string, patch: Partial<Todo>) => {
-    setProjects(projects.map(p => {
+  const updateTodo = useCallback(async (projectId: string, todoId: string, patch: Partial<Todo>) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       return {
         ...p,
@@ -144,16 +215,16 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
-  const deleteTodo = useCallback((projectId: string, todoId: string) => {
-    setProjects(projects.map(p => {
+  const deleteTodo = useCallback(async (projectId: string, todoId: string) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       const todos = p.todos.filter(t => t.id !== todoId).map((t, idx) => ({ ...t, order: idx }));
       return { ...p, todos, updatedAt: nowISO() };
     }));
   }, [projects, setProjects]);
 
-  const reorderTodos = useCallback((projectId: string, from: number, to: number) => {
-    setProjects(projects.map(p => {
+  const reorderTodos = useCallback(async (projectId: string, from: number, to: number) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       const copy = p.todos.slice();
       const [item] = copy.splice(from, 1);
@@ -163,8 +234,8 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
-  const addSubtask = useCallback((projectId: string, todoId: string, text: string) => {
-    setProjects(projects.map(p => {
+  const addSubtask = useCallback(async (projectId: string, todoId: string, text: string) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       return {
         ...p,
@@ -179,8 +250,8 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
-  const updateSubtask = useCallback((projectId: string, todoId: string, subtaskId: string, patch: Partial<Subtask>) => {
-    setProjects(projects.map(p => {
+  const updateSubtask = useCallback(async (projectId: string, todoId: string, subtaskId: string, patch: Partial<Subtask>) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       return {
         ...p,
@@ -190,8 +261,8 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
-  const deleteSubtask = useCallback((projectId: string, todoId: string, subtaskId: string) => {
-    setProjects(projects.map(p => {
+  const deleteSubtask = useCallback(async (projectId: string, todoId: string, subtaskId: string) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       return {
         ...p,
@@ -201,8 +272,8 @@ export function useProjects(storageKey: string) {
     }));
   }, [projects, setProjects]);
 
-  const reorderSubtasks = useCallback((projectId: string, todoId: string, from: number, to: number) => {
-    setProjects(projects.map(p => {
+  const reorderSubtasks = useCallback(async (projectId: string, todoId: string, from: number, to: number) => {
+    await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
       return {
         ...p,
@@ -220,7 +291,7 @@ export function useProjects(storageKey: string) {
   }, [projects, setProjects]);
 
   // 项目重排序功能
-  const reorderProjects = useCallback((from: number, to: number) => {
+  const reorderProjects = useCallback(async (from: number, to: number) => {
     const sortedProjects = [...projects].sort((a, b) => (a.order || 0) - (b.order || 0));
     const copy = sortedProjects.slice();
     const [item] = copy.splice(from, 1);
@@ -233,11 +304,11 @@ export function useProjects(storageKey: string) {
       updatedAt: nowISO()
     }));
     
-    setProjects(reorderedProjects);
+    await setProjects(reorderedProjects);
   }, [projects, setProjects]);
 
   // 更新项目排序（根据项目ID数组）
-  const updateProjectOrder = useCallback((projectOrders: {id: string, order: number}[]) => {
+  const updateProjectOrder = useCallback(async (projectOrders: {id: string, order: number}[]) => {
     const updatedProjects = projects.map(project => {
       const orderItem = projectOrders.find(p => p.id === project.id);
       return orderItem ? {
@@ -246,7 +317,7 @@ export function useProjects(storageKey: string) {
         updatedAt: nowISO()
       } : project;
     });
-    setProjects(updatedProjects);
+    await setProjects(updatedProjects);
   }, [projects, setProjects]);
 
   const computed = useMemo(() => ({
@@ -254,6 +325,19 @@ export function useProjects(storageKey: string) {
     active: projects.filter(p => !p.isCompleted).length,
     completed: projects.filter(p => p.isCompleted).length,
   }), [projects]);
+
+  // 包装的导入导出函数，支持文件系统存储
+  const importFromJSON = useCallback(async (json: string) => {
+    const result = importLocalJSON(json);
+    if (result.ok && result.data) {
+      await setProjects(result.data);
+    }
+    return result;
+  }, [importLocalJSON, setProjects]);
+
+  const exportToJSON = useCallback(() => {
+    return exportLocalJSON();
+  }, [exportLocalJSON]);
 
   return {
     projects,
@@ -274,5 +358,7 @@ export function useProjects(storageKey: string) {
     computed,
     importFromJSON,
     exportToJSON,
+    isLoading, // 新增加载状态
+    loadProjects, // 新增重新加载函数
   } as const;
 }
