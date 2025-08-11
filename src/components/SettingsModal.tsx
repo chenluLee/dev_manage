@@ -19,7 +19,7 @@ interface Props {
   storagePath?: string;
   onStoragePathChange: (path: string) => void;
   onExport: () => string;
-  onImport: (json: string) => { ok: boolean; error?: unknown };
+  onImport: (json: string) => Promise<{ ok: boolean; error?: unknown }>;
   onClear: () => void;
   stats?: { total: number; active: number; completed: number };
   settings: AppSettings;
@@ -241,9 +241,11 @@ export default function SettingsModal({
                   const file = e.target.files?.[0];
                   if (!file) return;
                   const text = await file.text();
-                  const res = onImport(text);
+                  const res = await onImport(text);
                   if (!res.ok) alert("导入失败，请检查JSON格式");
-                  e.currentTarget.value = ""; // reset
+                  if (fileRef.current) {
+                    fileRef.current.value = ""; // reset
+                  }
                 }}
               />
               <Button variant="outline" onClick={() => fileRef.current?.click()}>导入JSON</Button>
