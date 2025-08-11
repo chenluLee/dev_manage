@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SubtaskItem from "./SubtaskItem";
 import { useDndSensors } from "@/hooks/useDragDrop";
@@ -48,12 +48,6 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
   
-  // 监听子任务变化，自动展开列表
-  useEffect(() => {
-    if (todo.subtasks.length > 0 && !expanded) {
-      setExpanded(true);
-    }
-  }, [todo.subtasks.length, expanded]);
 
   const handleSubtaskDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -97,7 +91,7 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
         </button>
 
         {/* 内容区域 - 动态调整宽度 */}
-        <div className={cn("flex-1 content-expand", isHovered || editing ? "mr-3" : "mr-0")}>
+        <div className={cn("flex-1 content-expand", isHovered || editing ? "mr-2" : "mr-0")}>
           {editing ? (
             <input
               ref={inputRef}
@@ -112,15 +106,33 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
           )}
         </div>
 
-        <button aria-label="展开/收起子任务" onClick={() => setExpanded(!expanded)} className="p-1 text-muted-foreground hover:text-foreground shrink-0 transition-colors duration-200">
-          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </button>
+        {/* 子任务完成状态和展开按钮 */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* 子任务完成状态指示器 */}
+          {todo.subtasks.length > 0 && (
+            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+              {todo.subtasks.filter(s => s.isCompleted).length}/{todo.subtasks.length}
+            </span>
+          )}
+          
+          {/* 展开/收起按钮 - 仅在有子任务时显示 */}
+          {todo.subtasks.length > 0 ? (
+            <button 
+              aria-label="展开/收起子任务" 
+              onClick={() => setExpanded(!expanded)} 
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors duration-200"
+            >
+              {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          ) : (
+            <div className="p-1 opacity-0 pointer-events-none">
+              <ChevronRight className="h-4 w-4" />
+            </div>
+          )}
+        </div>
         
         {/* 操作按钮 - 悬停时从右侧滑入 */}
-        <div className={cn("expand-slide flex items-center overflow-hidden", isHovered || editing ? "w-16 opacity-100" : "w-0 opacity-0")}>
-          <button aria-label="编辑待办" onClick={() => setEditing(true)} className="p-1 text-muted-foreground hover:text-foreground transition-colors duration-200">
-            <Pencil className="h-4 w-4" />
-          </button>
+        <div className={cn("expand-slide flex items-center overflow-hidden", isHovered || editing ? "w-8 opacity-100" : "w-0 opacity-0")}>
           <button aria-label="删除待办" onClick={onDelete} className="p-1 text-error hover:text-destructive transition-colors duration-200">
             <Trash2 className="h-4 w-4" />
           </button>

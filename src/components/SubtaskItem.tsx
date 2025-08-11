@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckCircle2, Circle, GripVertical, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, GripVertical, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -61,7 +61,7 @@ export default function SubtaskItem({ subtask, onUpdate, onDelete }: Props) {
       </button>
 
       {/* 内容区域 - 动态调整宽度 */}
-      <div className={cn("flex-1 content-expand", isHovered || editing ? "mr-3" : "mr-0")}>
+      <div className={cn("flex-1 content-expand", isHovered || editing ? "mr-2" : "mr-0")}>
         {editing ? (
           <input
             ref={inputRef}
@@ -82,10 +82,7 @@ export default function SubtaskItem({ subtask, onUpdate, onDelete }: Props) {
       </div>
 
       {/* 操作按钮 - 悬停时从右侧滑入 */}
-      <div className={cn("expand-slide-fast flex items-center overflow-hidden", isHovered || editing ? "w-16 opacity-100" : "w-0 opacity-0")}>
-        <button aria-label="编辑子任务" onClick={() => setEditing(true)} className="p-1 text-muted-foreground hover:text-foreground transition-colors duration-200">
-          <Pencil className="h-4 w-4" />
-        </button>
+      <div className={cn("expand-slide-fast flex items-center overflow-hidden", isHovered || editing ? "w-8 opacity-100" : "w-0 opacity-0")}>
         <button aria-label="删除子任务" onClick={onDelete} className="p-1 text-error hover:text-destructive transition-colors duration-200">
           <Trash2 className="h-4 w-4" />
         </button>
