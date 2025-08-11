@@ -38,6 +38,7 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
   const [expanded, setExpanded] = useState(todo.subtasks.length > 0);
   const [isHovered, setIsHovered] = useState(false);
   const [text, setText] = useState(todo.text);
+  const [isAddingSubtask, setIsAddingSubtask] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
@@ -46,6 +47,13 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
   const sensors = useDndSensors();
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  
+  // 监听子任务变化，自动展开列表
+  useEffect(() => {
+    if (todo.subtasks.length > 0 && !expanded) {
+      setExpanded(true);
+    }
+  }, [todo.subtasks.length, expanded]);
 
   const handleSubtaskDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -124,10 +132,22 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
         <div className={cn("expand-slide overflow-hidden", isHovered || editing ? "h-6 opacity-100" : "h-0 opacity-0")}>
           <button
             aria-label="新增子任务"
-            onClick={() => onAddSubtask("新子任务")}
-            className="flex items-center gap-1 text-sm text-primary hover:underline"
+            disabled={isAddingSubtask}
+            onClick={async () => {
+              try {
+                setIsAddingSubtask(true);
+                // 先展开子任务列表，确保新添加的子任务能立即显示
+                setExpanded(true);
+                await onAddSubtask("新子任务");
+              } catch (error) {
+                console.error('添加子任务失败:', error);
+              } finally {
+                setIsAddingSubtask(false);
+              }
+            }}
+            className="flex items-center gap-1 text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="h-4 w-4" /> 添加子任务
+            <Plus className="h-4 w-4" /> {isAddingSubtask ? '添加中...' : '添加子任务'}
           </button>
         </div>
 

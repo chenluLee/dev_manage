@@ -89,7 +89,7 @@ describe('useUserPreferences', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       act(() => {
-        result.current.updateProjectOrder('invalid' as any);
+        result.current.updateProjectOrder('invalid' as unknown as { id: string; order: number }[]);
       });
 
       expect(consoleSpy).toHaveBeenCalledWith('项目排序数据必须是数组');

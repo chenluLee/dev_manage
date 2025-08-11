@@ -34,6 +34,7 @@ const Index = () => {
     importFromJSON,
     exportToJSON,
     setProjects,
+    loadProjects,
   } = useProjects(storageKey);
   
   const { updateProjectOrder: updateUserPreferenceOrder } = useUserPreferences();
@@ -206,16 +207,16 @@ const Index = () => {
         <ProjectGrid
           projects={projects}
           filter={filter}
-          onAddTodo={(projectId, text) => addTodo(projectId, text)}
-          onUpdateProject={(projectId, patch) => updateProject(projectId, patch)}
-          onDeleteProject={(projectId) => deleteProject(projectId)}
-          onUpdateTodo={(projectId, todoId, patch) => updateTodo(projectId, todoId, patch)}
-          onDeleteTodo={(projectId, todoId) => deleteTodo(projectId, todoId)}
-          onReorderTodos={(projectId, from, to) => reorderTodos(projectId, from, to)}
-          onAddSubtask={(projectId, todoId, text) => addSubtask(projectId, todoId, text)}
-          onUpdateSubtask={(projectId, todoId, subId, patch) => updateSubtask(projectId, todoId, subId, patch)}
-          onDeleteSubtask={(projectId, todoId, subId) => deleteSubtask(projectId, todoId, subId)}
-          onReorderSubtasks={(projectId, todoId, from, to) => reorderSubtasks(projectId, todoId, from, to)}
+          onAddTodo={async (projectId, text) => await addTodo(projectId, text)}
+          onUpdateProject={async (projectId, patch) => await updateProject(projectId, patch)}
+          onDeleteProject={async (projectId) => await deleteProject(projectId)}
+          onUpdateTodo={async (projectId, todoId, patch) => await updateTodo(projectId, todoId, patch)}
+          onDeleteTodo={async (projectId, todoId) => await deleteTodo(projectId, todoId)}
+          onReorderTodos={async (projectId, from, to) => await reorderTodos(projectId, from, to)}
+          onAddSubtask={async (projectId, todoId, text) => await addSubtask(projectId, todoId, text)}
+          onUpdateSubtask={async (projectId, todoId, subId, patch) => await updateSubtask(projectId, todoId, subId, patch)}
+          onDeleteSubtask={async (projectId, todoId, subId) => await deleteSubtask(projectId, todoId, subId)}
+          onReorderSubtasks={async (projectId, todoId, from, to) => await reorderSubtasks(projectId, todoId, from, to)}
           onReorderProjects={handleProjectReorder}
         />
       </main>

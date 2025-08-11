@@ -149,6 +149,12 @@ export function useProjects(storageKey: string) {
       throw new Error('项目名称已存在');
     }
 
+    // 更新现有项目的order值
+    const updatedExistingProjects = projects.map(p => ({
+      ...p,
+      order: (p.order || 0) + 1
+    }));
+    
     const project: Project = {
       id: uid(),
       name: trimmedName,
@@ -156,10 +162,10 @@ export function useProjects(storageKey: string) {
       isCompleted: false,
       createdAt: nowISO(),
       updatedAt: nowISO(),
-      order: projects.length, // 新项目放在最后
+      order: 0, // 新项目排在最前面
       todos: [],
     };
-    await setProjects([project, ...projects]);
+    await setProjects([project, ...updatedExistingProjects]);
   }, [projects, setProjects]);
 
   const updateProject = useCallback(async (id: string, patch: Partial<Project>) => {
@@ -198,9 +204,12 @@ export function useProjects(storageKey: string) {
   const addTodo = useCallback(async (projectId: string, text: string) => {
     await setProjects(projects.map(p => {
       if (p.id !== projectId) return p;
-      const order = p.todos.length;
-      const todo: Todo = { id: uid(), text, isCompleted: false, order, projectId, subtasks: [] };
-      return { ...p, todos: [...p.todos, todo], updatedAt: nowISO() };
+      
+      // 更新现有待办的order值
+      const updatedTodos = p.todos.map(t => ({ ...t, order: t.order + 1 }));
+      
+      const todo: Todo = { id: uid(), text, isCompleted: false, order: 0, projectId, subtasks: [] };
+      return { ...p, todos: [todo, ...updatedTodos], updatedAt: nowISO() };
     }));
   }, [projects, setProjects]);
 
@@ -235,19 +244,25 @@ export function useProjects(storageKey: string) {
   }, [projects, setProjects]);
 
   const addSubtask = useCallback(async (projectId: string, todoId: string, text: string) => {
-    await setProjects(projects.map(p => {
+    // 创建更新后的项目数组
+    const updatedProjects = projects.map(p => {
       if (p.id !== projectId) return p;
       return {
         ...p,
         todos: p.todos.map(t => {
           if (t.id !== todoId) return t;
-          const order = t.subtasks.length;
-          const sub: Subtask = { id: uid(), text, isCompleted: false, order, todoId };
-          return { ...t, subtasks: [...t.subtasks, sub] };
+          
+          // 更新现有子任务的order值
+          const updatedSubtasks = t.subtasks.map(s => ({ ...s, order: s.order + 1 }));
+          
+          const sub: Subtask = { id: uid(), text, isCompleted: false, order: 0, todoId };
+          return { ...t, subtasks: [sub, ...updatedSubtasks] };
         }),
         updatedAt: nowISO(),
       };
-    }));
+    });
+    
+    await setProjects(updatedProjects);
   }, [projects, setProjects]);
 
   const updateSubtask = useCallback(async (projectId: string, todoId: string, subtaskId: string, patch: Partial<Subtask>) => {

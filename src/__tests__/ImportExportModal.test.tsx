@@ -111,12 +111,16 @@ describe('ImportExportModal', () => {
 
   it('should handle export button click', async () => {
     const { StorageManager } = await import('@/managers/StorageManager');
+    const { act } = await import('@testing-library/react');
     (StorageManager.downloadExportedData as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
 
     render(<ImportExportModal {...defaultProps} />);
     
     const exportButton = screen.getByText('导出为JSON文件');
-    fireEvent.click(exportButton);
+    
+    await act(async () => {
+      fireEvent.click(exportButton);
+    });
 
     expect(StorageManager.downloadExportedData).toHaveBeenCalledWith(
       mockAppData,

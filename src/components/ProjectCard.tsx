@@ -83,6 +83,7 @@ export default function ProjectCard(props: Props) {
   const [editingDesc, setEditingDesc] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [descError, setDescError] = useState<string | null>(null);
+  const [isAddingTodo, setIsAddingTodo] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { if (editingName) nameRef.current?.focus(); }, [editingName]);
@@ -305,11 +306,21 @@ export default function ProjectCard(props: Props) {
         <CardContent>
           <div className="flex items-center justify-between pb-2">
             <button
-              className="text-sm text-primary hover:underline story-link"
-              onClick={() => props.onAddTodo("新的待办")}
+              className="text-sm text-primary hover:underline story-link disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isAddingTodo}
+              onClick={async () => {
+                try {
+                  setIsAddingTodo(true);
+                  await props.onAddTodo("新的待办");
+                } catch (error) {
+                  console.error('添加待办失败:', error);
+                } finally {
+                  setIsAddingTodo(false);
+                }
+              }}
               aria-label="快速添加一个待办"
             >
-              + 快速添加待办
+              {isAddingTodo ? '添加中...' : '+ 快速添加待办'}
             </button>
 
             <Button variant="outline" size="sm" onClick={handleToggleExpanded} aria-expanded={expanded} aria-controls={`todos-${project.id}`}>

@@ -128,12 +128,17 @@ describe('ProjectCard', () => {
     expect(onUpdateProject).toHaveBeenCalledWith({ isCompleted: true });
   });
 
-  it('应该显示添加待办按钮', () => {
+  it('应该显示添加待办按钮', async () => {
     const onAddTodo = vi.fn();
+    const { act } = await import('@testing-library/react');
+    
     render(<ProjectCard {...defaultProps} onAddTodo={onAddTodo} />);
     
     const addButton = screen.getByText('+ 快速添加待办');
-    fireEvent.click(addButton);
+    
+    await act(async () => {
+      fireEvent.click(addButton);
+    });
     
     expect(onAddTodo).toHaveBeenCalledWith('新的待办');
   });
