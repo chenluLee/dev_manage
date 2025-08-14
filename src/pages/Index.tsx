@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import StatusToggle from "@/components/StatusToggle";
 import SettingsModal from "@/components/SettingsModal";
+import ReportModal from "@/components/ReportModal";
 import ProjectGrid from "@/components/ProjectGrid";
 import { useProjects } from "@/hooks/useProjects";
 import { useUserPreferences } from "@/hooks/useUserPreferences";
@@ -8,7 +9,7 @@ import { ProjectFilter, AppSettings, AppData } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Settings, Plus } from "lucide-react";
+import { Settings, Plus, FileText } from "lucide-react";
 import { StorageManager } from "@/managers/StorageManager";
 
 const Index = () => {
@@ -41,6 +42,7 @@ const Index = () => {
 
   const [filter, setFilter] = useState<ProjectFilter>("active");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   
   // 应用设置状态
@@ -159,6 +161,14 @@ const Index = () => {
             <StatusToggle value={filter} onChange={setFilter} />
             <Tooltip>
               <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="生成报告" onClick={() => setReportOpen(true)}>
+                  <FileText className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>生成报告</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="系统设置" onClick={() => setSettingsOpen(true)}>
                   <Settings className="h-5 w-5" />
                 </Button>
@@ -236,6 +246,17 @@ const Index = () => {
         onSettingsUpdate={handleSettingsUpdate}
         currentData={currentData}
         onDataRestore={handleDataRestore}
+      />
+
+      <ReportModal
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        projects={projects}
+        settings={settings}
+        onOpenSettings={() => {
+          setReportOpen(false);
+          setSettingsOpen(true);
+        }}
       />
     </div>
   );

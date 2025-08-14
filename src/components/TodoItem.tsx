@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { DndContext, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CheckCircle2, Circle, ChevronDown, ChevronRight, GripVertical, Plus, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import SubtaskItem from "./SubtaskItem";
 import { useDndSensors } from "@/hooks/useDragDrop";
@@ -14,6 +15,7 @@ interface Subtask {
   isCompleted: boolean;
   order: number;
   todoId: string;
+  completedAt?: string;
 }
 
 interface Props {
@@ -24,6 +26,7 @@ interface Props {
     order: number;
     projectId: string;
     subtasks: Subtask[];
+    completedAt?: string;
   };
   onUpdate: (patch: Partial<Props["todo"]>) => void;
   onDelete: () => void;
@@ -86,7 +89,10 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
           </button>
         </div>
 
-        <button aria-pressed={todo.isCompleted} aria-label={todo.isCompleted ? "标记为未完成" : "标记为已完成"} onClick={() => onUpdate({ isCompleted: !todo.isCompleted })} className="p-1 rounded-md text-success hover:bg-accent/60 focus:outline-none focus:ring-2 focus:ring-ring shrink-0 transition-colors duration-200">
+        <button aria-pressed={todo.isCompleted} aria-label={todo.isCompleted ? "标记为未完成" : "标记为已完成"} onClick={() => onUpdate({ 
+          isCompleted: !todo.isCompleted,
+          completedAt: !todo.isCompleted ? new Date().toISOString() : undefined
+        })} className="p-1 rounded-md text-success hover:bg-accent/60 focus:outline-none focus:ring-2 focus:ring-ring shrink-0 transition-colors duration-200">
           {todo.isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
         </button>
 
@@ -102,7 +108,22 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
               onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
             />
           ) : (
-            <span onDoubleClick={() => setEditing(true)} className={cn("block text-sm", todo.isCompleted && "line-through text-muted-foreground")}>{todo.text}</span>
+            <div>
+              <span onDoubleClick={() => setEditing(true)} className={cn("block text-sm", todo.isCompleted && "line-through text-muted-foreground")}>{todo.text}</span>
+              {isHovered && todo.isCompleted && todo.completedAt && (() => {
+                try {
+                  const date = new Date(todo.completedAt);
+                  if (isNaN(date.getTime())) return null;
+                  return (
+                    <span className="text-xs text-muted-foreground">
+                      完成于 {format(date, 'yyyy-MM-dd')}
+                    </span>
+                  );
+                } catch {
+                  return null;
+                }
+              })()}
+            </div>
           )}
         </div>
 

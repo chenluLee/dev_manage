@@ -9,7 +9,8 @@ import { useState, useRef, useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { BackupManagerModal } from "./BackupManagerModal";
 import { AppSettings, AppData } from "@/types";
-import { HardDrive } from "lucide-react";
+import { HardDrive, Bot } from "lucide-react";
+import { validateOllamaUrl, validateModelName, validateTemperature } from "@/utils/aiConfigValidation";
 
 interface Props {
   open: boolean;
@@ -50,6 +51,16 @@ export default function SettingsModal({
   const [healthCheck, setHealthCheck] = useState<StorageHealthCheck | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
   const [showBackupManager, setShowBackupManager] = useState(false);
+  const [aiConfigErrors, setAiConfigErrors] = useState<{
+    ollamaUrl?: string;
+    modelName?: string;
+    temperature?: string;
+  }>({});
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionTestResult, setConnectionTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const handleSelectStoragePath = async () => {
     setIsSelectingPath(true);
@@ -92,6 +103,85 @@ export default function SettingsModal({
       setStorageError("健康检查失败");
     } finally {
       setIsCheckingHealth(false);
+    }
+  };
+
+  const handleAiConfigChange = (field: 'ollamaUrl' | 'modelName' | 'temperature', value: string | number) => {
+    const newAiReport = {
+      ollamaUrl: settings.aiReport?.ollamaUrl || "http://localhost:11345",
+      modelName: settings.aiReport?.modelName || "gpt-oss", 
+      temperature: settings.aiReport?.temperature || 0.7,
+      [field]: value
+    };
+
+    // 验证输入
+    const errors = { ...aiConfigErrors };
+    
+    if (field === 'ollamaUrl') {
+      const validation = validateOllamaUrl(value as string);
+      if (!validation.isValid) {
+        errors.ollamaUrl = validation.error;
+      } else {
+        delete errors.ollamaUrl;
+      }
+    } else if (field === 'modelName') {
+      const validation = validateModelName(value as string);
+      if (!validation.isValid) {
+        errors.modelName = validation.error;
+      } else {
+        delete errors.modelName;
+      }
+    } else if (field === 'temperature') {
+      const validation = validateTemperature(value as number);
+      if (!validation.isValid) {
+        errors.temperature = validation.error;
+      } else {
+        delete errors.temperature;
+      }
+    }
+
+    setAiConfigErrors(errors);
+    setConnectionTestResult(null); // 清除之前的连接测试结果
+    
+    onSettingsUpdate({
+      ...settings,
+      aiReport: newAiReport
+    });
+  };
+
+  const testOllamaConnection = async () => {
+    const config = {
+      ollamaUrl: settings.aiReport?.ollamaUrl || "http://localhost:11345",
+      modelName: settings.aiReport?.modelName || "gpt-oss",
+      temperature: settings.aiReport?.temperature || 0.7
+    };
+    
+    setIsTestingConnection(true);
+    setConnectionTestResult(null);
+
+    try {
+      // 使用更强大的OllamaService测试方法
+      const { OllamaService } = await import('@/services/OllamaService');
+      const result = await OllamaService.testConnection(config);
+      
+      if (result.success) {
+        setConnectionTestResult({
+          success: true,
+          message: "连接测试成功！服务和模型都正常可用"
+        });
+      } else {
+        setConnectionTestResult({
+          success: false,
+          message: result.error || "连接测试失败"
+        });
+      }
+    } catch (error) {
+      setConnectionTestResult({
+        success: false,
+        message: `连接测试失败: ${error instanceof Error ? error.message : '未知错误'}`
+      });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -328,6 +418,124 @@ export default function SettingsModal({
               <p className="text-xs text-muted-foreground">
                 备份文件将保存到选定的存储目录中的 backups 文件夹内
               </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              AI报告生成
+            </Label>
+            <div className="space-y-3">
+              {/* Ollama URL 配置 */}
+              <div className="space-y-1">
+                <Label htmlFor="ollamaUrl" className="text-sm">Ollama服务器URL</Label>
+                <Input
+                  id="ollamaUrl"
+                  type="url"
+                  value={settings.aiReport?.ollamaUrl || "http://localhost:11345"}
+                  onChange={(e) => handleAiConfigChange('ollamaUrl', e.target.value)}
+                  placeholder="http://localhost:11345"
+                  className={`w-full ${aiConfigErrors.ollamaUrl ? 'border-red-500' : ''}`}
+                />
+                {aiConfigErrors.ollamaUrl && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-sm">
+                      {aiConfigErrors.ollamaUrl}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded border-l-2 border-blue-200">
+                  <div className="font-semibold mb-1">端口配置:</div>
+                  <div>• Ollama 默认端口: http://localhost:11434</div>
+                  <div>• OpenAI 兼容服务: 通常使用其他端口 (如 11345)</div>
+                  <div>• 测试连接将自动检测 API 格式</div>
+                  <div>• 确保服务已启动: <code className="bg-blue-100 px-1 rounded">ollama serve</code></div>
+                </div>
+              </div>
+
+              {/* 模型名称配置 */}
+              <div className="space-y-1">
+                <Label htmlFor="modelName" className="text-sm">AI模型名称</Label>
+                <Input
+                  id="modelName"
+                  type="text"
+                  value={settings.aiReport?.modelName || "gpt-oss"}
+                  onChange={(e) => handleAiConfigChange('modelName', e.target.value)}
+                  placeholder="gpt-oss"
+                  className={`w-full ${aiConfigErrors.modelName ? 'border-red-500' : ''}`}
+                />
+                {aiConfigErrors.modelName && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-sm">
+                      {aiConfigErrors.modelName}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="text-xs text-muted-foreground bg-green-50 p-2 rounded border-l-2 border-green-200">
+                  <div className="font-semibold mb-1">根据您的服务，推荐使用:</div>
+                  <div>• gpt-oss (您服务中可用)</div>
+                  <div>• qwen3:32b (中文优化)</div>
+                  <div>• qwq:latest (推理模型)</div>
+                  <div>• deepseek-r1:32b (数学推理)</div>
+                  <div className="mt-1 text-blue-600">
+                    💡 您的服务支持 OpenAI 兼容 API 格式
+                  </div>
+                </div>
+              </div>
+
+              {/* 温度参数配置 */}
+              <div className="space-y-1">
+                <Label htmlFor="temperature" className="text-sm">温度参数</Label>
+                <Input
+                  id="temperature"
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={settings.aiReport?.temperature || 0.7}
+                  onChange={(e) => handleAiConfigChange('temperature', parseFloat(e.target.value) || 0.7)}
+                  className={`w-full ${aiConfigErrors.temperature ? 'border-red-500' : ''}`}
+                />
+                {aiConfigErrors.temperature && (
+                  <Alert variant="destructive">
+                    <AlertDescription className="text-sm">
+                      {aiConfigErrors.temperature}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  控制AI生成的随机性（0-2，推荐0.7）
+                </p>
+              </div>
+
+              {/* 连接测试 */}
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={testOllamaConnection}
+                  disabled={isTestingConnection || !!aiConfigErrors.ollamaUrl || !!aiConfigErrors.modelName}
+                  className="w-full"
+                >
+                  {isTestingConnection ? "测试中..." : "测试连接"}
+                </Button>
+                
+                {connectionTestResult && (
+                  <Alert variant={connectionTestResult.success ? "default" : "destructive"}>
+                    <AlertDescription className="text-sm whitespace-pre-line">
+                      {connectionTestResult.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <div className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded border-l-2 border-yellow-200">
+                  <div className="font-semibold mb-1">故障排除:</div>
+                  <div>1. 确认Ollama服务已启动</div>
+                  <div>2. 检查端口是否正确(默认11434)</div>
+                  <div>3. 确认模型已安装并可用</div>
+                  <div>4. 检查防火墙设置</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

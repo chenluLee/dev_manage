@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CheckCircle2, Circle, GripVertical, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
     isCompleted: boolean;
     order: number;
     todoId: string;
+    completedAt?: string;
   };
   onUpdate: (patch: Partial<Props["subtask"]>) => void;
   onDelete: () => void;
@@ -54,7 +56,10 @@ export default function SubtaskItem({ subtask, onUpdate, onDelete }: Props) {
       <button
         aria-pressed={subtask.isCompleted}
         aria-label={subtask.isCompleted ? "标记为未完成" : "标记为已完成"}
-        onClick={() => onUpdate({ isCompleted: !subtask.isCompleted })}
+        onClick={() => onUpdate({ 
+          isCompleted: !subtask.isCompleted,
+          completedAt: !subtask.isCompleted ? new Date().toISOString() : undefined
+        })}
         className="p-1 rounded-md text-success hover:bg-accent/60 focus:outline-none focus:ring-2 focus:ring-ring shrink-0 transition-colors duration-200"
       >
         {subtask.isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
@@ -72,12 +77,27 @@ export default function SubtaskItem({ subtask, onUpdate, onDelete }: Props) {
             onKeyDown={(e) => { if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); } }}
           />
         ) : (
-          <span
-            onDoubleClick={() => setEditing(true)}
-            className={cn("block text-sm", subtask.isCompleted && "line-through text-muted-foreground")}
-          >
-            {subtask.text}
-          </span>
+          <div>
+            <span
+              onDoubleClick={() => setEditing(true)}
+              className={cn("block text-sm", subtask.isCompleted && "line-through text-muted-foreground")}
+            >
+              {subtask.text}
+            </span>
+            {isHovered && subtask.isCompleted && subtask.completedAt && (() => {
+              try {
+                const date = new Date(subtask.completedAt);
+                if (isNaN(date.getTime())) return null;
+                return (
+                  <span className="text-xs text-muted-foreground">
+                    完成于 {format(date, 'yyyy-MM-dd')}
+                  </span>
+                );
+              } catch {
+                return null;
+              }
+            })()}
+          </div>
         )}
       </div>
 

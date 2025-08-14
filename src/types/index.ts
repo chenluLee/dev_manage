@@ -4,6 +4,7 @@ export interface Subtask {
   isCompleted: boolean;
   order: number;
   todoId: string;
+  completedAt?: string; // ISO 8601 格式的完成时间戳
 }
 
 export interface Todo {
@@ -13,6 +14,7 @@ export interface Todo {
   order: number;
   subtasks: Subtask[];
   projectId: string;
+  completedAt?: string; // ISO 8601 格式的完成时间戳
 }
 
 export interface Project {
@@ -41,6 +43,12 @@ export interface AppSettings {
   collapsedProjects: string[];   // 折叠的项目ID列表
   searchHistory: string[];       // 搜索历史（最多5条）
   statusFilter: ('active' | 'completed')[]; // 状态筛选偏好
+  // AI报告生成配置
+  aiReport?: {
+    ollamaUrl: string;           // Ollama服务器URL
+    modelName: string;           // AI模型名称
+    temperature: number;         // 温度参数 (0-2)
+  };
 }
 
 export interface BackupMetadata {
@@ -66,4 +74,59 @@ export interface AppData {
     totalProjects: number;
     totalTodos: number;
   };
+}
+
+// 报告生成相关类型
+export interface ReportData {
+  dateRange: { start: string; end: string };
+  completedItems: {
+    projectName: string;
+    todos: Array<{
+      content: string;
+      completedAt: string;
+      subtasks: Array<{
+        content: string;
+        completedAt: string;
+      }>;
+    }>;
+  }[];
+  statistics: {
+    totalProjects: number;
+    totalTodos: number;
+    totalSubtasks: number;
+  };
+}
+
+// AI报告生成相关类型
+export interface AIReportRequest {
+  model: string;
+  prompt: string;
+  temperature: number;
+  stream?: boolean;
+}
+
+export interface AIReportResponse {
+  model: string;
+  created_at: string;
+  response: string;
+  done: boolean;
+  context?: number[];
+  total_duration?: number;
+  load_duration?: number;
+  prompt_eval_count?: number;
+  prompt_eval_duration?: number;
+  eval_count?: number;
+  eval_duration?: number;
+}
+
+export interface AIReportConfig {
+  ollamaUrl: string;
+  modelName: string;
+  temperature: number;
+}
+
+export interface GenerateReportResult {
+  success: boolean;
+  content?: string;
+  error?: string;
 }

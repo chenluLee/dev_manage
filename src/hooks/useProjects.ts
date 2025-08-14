@@ -65,29 +65,6 @@ export function useProjects(storageKey: string) {
   const [projects, setProjectsState] = useState<Project[]>(localProjects);
   const [isLoading, setIsLoading] = useState(true);
   
-  // 从存储中加载数据（优先文件系统，降级到localStorage）
-  const loadProjects = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // 首先尝试从文件系统加载
-      if (StorageManager.isFileSystemAccessSupported() && StorageManager.getSelectedDirectoryName()) {
-        const result = await StorageManager.loadDataFromDirectory();
-        if (result.data?.projects) {
-          setProjectsState(result.data.projects);
-          setIsLoading(false);
-          return;
-        }
-      }
-      
-      // 降级到localStorage
-      setProjectsState(localProjects);
-    } catch (error) {
-      console.warn('加载项目数据失败，使用localStorage数据:', error);
-      setProjectsState(localProjects);
-    }
-    setIsLoading(false);
-  }, [localProjects]);
-  
   // 保存数据（同时保存到文件系统和localStorage）
   const saveProjects = useCallback(async (newProjects: Project[]) => {
     // 立即更新本地状态
@@ -120,6 +97,85 @@ export function useProjects(storageKey: string) {
       }
     }
   }, [setLocalProjects]);
+
+  // 检查并更新已完成事项的完成日期
+  const fixCompletionDates = useCallback((projects: Project[]) => {
+    const currentDate = nowISO();
+    let hasChanges = false;
+    
+    const updatedProjects = projects.map(project => {
+      const updatedTodos = project.todos.map(todo => {
+        let todoNeedsUpdate = false;
+        let newTodo = { ...todo };
+        
+        // 检查并修复待办事项的完成日期
+        if (todo.isCompleted && !todo.completedAt) {
+          newTodo = { ...newTodo, completedAt: currentDate };
+          todoNeedsUpdate = true;
+          hasChanges = true;
+        }
+        
+        // 检查并修复子任务的完成日期
+        const updatedSubtasks = todo.subtasks.map(subtask => {
+          if (subtask.isCompleted && !subtask.completedAt) {
+            hasChanges = true;
+            return { ...subtask, completedAt: currentDate };
+          }
+          return subtask;
+        });
+        
+        // 如果子任务有变化，更新todo
+        if (updatedSubtasks.some((subtask, index) => subtask !== todo.subtasks[index])) {
+          newTodo = { ...newTodo, subtasks: updatedSubtasks };
+        }
+        
+        return newTodo;
+      });
+      
+      return { ...project, todos: updatedTodos };
+    });
+    
+    return { projects: updatedProjects, hasChanges };
+  }, []);
+
+  // 从存储中加载数据（优先文件系统，降级到localStorage）
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      let loadedProjects: Project[] = localProjects;
+      
+      // 首先尝试从文件系统加载
+      if (StorageManager.isFileSystemAccessSupported() && StorageManager.getSelectedDirectoryName()) {
+        const result = await StorageManager.loadDataFromDirectory();
+        if (result.data?.projects) {
+          loadedProjects = result.data.projects;
+        }
+      }
+      
+      // 检查并修复完成日期
+      const { projects: fixedProjects, hasChanges } = fixCompletionDates(loadedProjects);
+      
+      setProjectsState(fixedProjects);
+      
+      // 如果有修复，保存数据
+      if (hasChanges) {
+        console.log('检测到缺失的完成日期，已自动修复并保存');
+        await saveProjects(fixedProjects);
+      }
+      
+    } catch (error) {
+      console.warn('加载项目数据失败，使用localStorage数据:', error);
+      const { projects: fixedProjects, hasChanges } = fixCompletionDates(localProjects);
+      setProjectsState(fixedProjects);
+      
+      // 如果有修复，保存数据
+      if (hasChanges) {
+        console.log('检测到缺失的完成日期，已自动修复并保存');
+        await saveProjects(fixedProjects);
+      }
+    }
+    setIsLoading(false);
+  }, [localProjects, fixCompletionDates, saveProjects]);
   
   // 组件挂载时加载数据
   useEffect(() => {

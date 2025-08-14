@@ -254,6 +254,11 @@ export class DataValidator {
       result.valid = false;
     }
 
+    // 完成时间字段检查 (可选字段)
+    if (todo.completedAt && !this.isValidDateString(todo.completedAt)) {
+      result.warnings.push(`${prefix}: 完成时间格式可能无效`);
+    }
+
     // 子任务检查
     if (todo.subtasks && isArray(todo.subtasks)) {
       const subtaskValidation = this.validateSubtasks(todo.subtasks, context, isString(todo.text) ? todo.text : undefined);
@@ -326,6 +331,11 @@ export class DataValidator {
     if (!isBoolean(subtask.isCompleted)) {
       result.errors.push(`${prefix}: 完成状态字段格式无效`);
       result.valid = false;
+    }
+
+    // 完成时间字段检查 (可选字段)
+    if (subtask.completedAt && !this.isValidDateString(subtask.completedAt)) {
+      result.warnings.push(`${prefix}: 完成时间格式可能无效`);
     }
 
     return result;
@@ -468,6 +478,11 @@ export class DataValidator {
     sanitized.isCompleted = isBoolean(todo.isCompleted) ? todo.isCompleted : false;
     sanitized.order = isNumber(todo.order) ? todo.order : index;
     sanitized.projectId = projectId;
+    
+    // 保持 completedAt 字段 (可选)
+    if (isString(todo.completedAt)) {
+      sanitized.completedAt = todo.completedAt;
+    }
 
     // 清理子任务
     if (isArray(todo.subtasks)) {
@@ -484,13 +499,20 @@ export class DataValidator {
   private static sanitizeSubtask(subtask: unknown, index: number, todoId: string): Subtask | null {
     if (!isRecord(subtask)) return null;
 
-    return {
+    const sanitized: Subtask = {
       id: isString(subtask.id) ? subtask.id : `subtask-${Date.now()}-${index}`,
       text: isString(subtask.text) ? subtask.text : `未命名子任务 ${index + 1}`,
       isCompleted: isBoolean(subtask.isCompleted) ? subtask.isCompleted : false,
       order: isNumber(subtask.order) ? subtask.order : index,
       todoId: todoId
     };
+
+    // 保持 completedAt 字段 (可选)
+    if (isString(subtask.completedAt)) {
+      sanitized.completedAt = subtask.completedAt;
+    }
+
+    return sanitized;
   }
 
   private static sanitizeAppSettings(settings: unknown): AppSettings {
