@@ -25,8 +25,9 @@ export default defineConfig(({ mode }) => {
           ws: false,
           rewrite: (path) => path.replace(/^\/api\/ollama/, ''),
           configure: (proxy, _options) => {
-            proxy.on('proxyReq', (proxyReq, req, res) => {
-              console.log(`🔄 代理请求: ${req.method} ${req.url} -> ${proxyReq.host}${proxyReq.path} (target: ${ollamaTarget})`);
+            // 动态代理处理器 - 支持运行时目标切换
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log(`🔄 代理请求: ${req.method} ${req.url} -> ${proxyReq.host}${proxyReq.path}`);
               
               // 确保请求头正确设置
               if (req.method === 'POST') {
@@ -39,7 +40,7 @@ export default defineConfig(({ mode }) => {
               proxyReq.removeHeader('referer');
             });
             
-            proxy.on('proxyRes', (proxyRes, req, res) => {
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
               console.log(`✅ 代理响应: ${proxyRes.statusCode} ${req.url}`);
               
               // 添加 CORS 头信息
@@ -50,7 +51,18 @@ export default defineConfig(({ mode }) => {
             
             proxy.on('error', (err, req, res) => {
               console.error('❌ Ollama proxy error:', err.message, 'for', req.url);
-              console.log(`💡 尝试连接目标: ${ollamaTarget}`);
+              console.log(`💡 当前代理目标: ${ollamaTarget}`);
+              console.log(`💡 提示: 请确保 Ollama 服务在目标地址可用，或设置环境变量 OLLAMA_URL 指向正确的地址`);
+              
+              // 返回友好的错误信息而不是代理错误
+              if (!res.headersSent) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  error: `Ollama 服务连接失败: ${err.message}`,
+                  target: ollamaTarget,
+                  suggestion: '请检查 Ollama 服务是否启动，或设置正确的 OLLAMA_URL 环境变量'
+                }));
+              }
             });
           },
         },

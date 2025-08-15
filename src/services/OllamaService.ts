@@ -149,10 +149,10 @@ export class OllamaService {
       }
 
       // 两个端点都失败
-      const portSuggestion = OllamaService.getPortSuggestion(baseUrl);
+      const suggestions = OllamaService.getConnectionSuggestion(baseUrl);
       return {
         success: false,
-        error: `服务不可达 - 已尝试 OpenAI 和 Ollama API 格式${portSuggestion}`
+        error: `服务不可达 - 已尝试 OpenAI 和 Ollama API 格式${suggestions}`
       };
 
     } catch (error) {
@@ -283,22 +283,33 @@ export class OllamaService {
   }
 
   /**
-   * 获取端口建议信息
+   * 获取详细的连接建议信息
    * @param baseUrl 当前URL
-   * @returns 端口建议字符串
+   * @returns 详细的建议字符串
    */
-  private static getPortSuggestion(baseUrl: string): string {
+  private static getConnectionSuggestion(baseUrl: string): string {
     try {
       const url = new URL(baseUrl);
       const currentPort = url.port || (url.protocol === 'https:' ? '443' : '80');
+      const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+      
+      const suggestions = [];
+      
+      if (!isLocalhost) {
+        suggestions.push(`设置环境变量: export OLLAMA_URL=${baseUrl}`);
+        suggestions.push('重启开发服务器: npm run dev');
+      }
       
       if (currentPort !== '11434') {
-        return `。建议尝试默认端口 11434: ${url.protocol}//${url.hostname}:11434`;
-      } else {
-        return '。请确认 Ollama 服务已启动 (ollama serve)';
+        suggestions.push(`尝试默认端口: ${url.protocol}//${url.hostname}:11434`);
       }
+      
+      suggestions.push('确认 Ollama 服务已启动: ollama serve');
+      suggestions.push('检查 Ollama 服务状态: ollama list');
+      
+      return `\n建议解决方案:\n${suggestions.map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
     } catch {
-      return '。请检查 URL 格式是否正确';
+      return '\n建议: 请检查 URL 格式是否正确';
     }
   }
 
@@ -309,16 +320,9 @@ export class OllamaService {
    */
   private static buildOpenAIModelsUrl(baseUrl: string): string {
     try {
-      // 在开发环境中，检查是否应该使用代理
+      // 在开发环境中，优先使用代理以避免 CORS 问题
       if (import.meta.env.DEV) {
-        const url = new URL(baseUrl);
-        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
-        const proxyUrl = new URL(proxyTarget);
-        
-        // 如果用户配置的端口与代理目标匹配，使用代理
-        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
-          return '/api/ollama/v1/models';
-        }
+        return '/api/ollama/v1/models';
       }
       
       const url = new URL(baseUrl);
@@ -337,16 +341,9 @@ export class OllamaService {
    */
   private static buildTagsUrl(baseUrl: string): string {
     try {
-      // 在开发环境中，检查是否应该使用代理
+      // 在开发环境中，优先使用代理以避免 CORS 问题
       if (import.meta.env.DEV) {
-        const url = new URL(baseUrl);
-        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
-        const proxyUrl = new URL(proxyTarget);
-        
-        // 如果用户配置的端口与代理目标匹配，使用代理
-        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
-          return '/api/ollama/api/tags';
-        }
+        return '/api/ollama/api/tags';
       }
       
       const url = new URL(baseUrl);
@@ -359,7 +356,7 @@ export class OllamaService {
   }
 
   /**
-   * 调用AI API - 支持多种API格式
+   * 调用AI API - 支持多种API格式，带智能连接策略
    * @param baseUrl 服务器URL
    * @param requestData 请求数据
    * @returns API响应结果
@@ -369,13 +366,34 @@ export class OllamaService {
     requestData: AIReportRequest
   ): Promise<GenerateReportResult> {
     try {
-      // 先尝试 OpenAI 兼容的 chat/completions 端点
+      // 在开发环境中，优先尝试代理连接
+      if (import.meta.env.DEV) {
+        console.log('🎯 智能连接策略: 优先尝试代理连接');
+        
+        // 先尝试 OpenAI 兼容的 chat/completions 端点 (通过代理)
+        const openaiResult = await OllamaService.tryOpenAIAPI(baseUrl, requestData);
+        if (openaiResult.success) {
+          console.log('✅ 代理连接成功 (OpenAI API)');
+          return openaiResult;
+        }
+
+        // 如果失败，尝试标准的 Ollama generate 端点 (通过代理)
+        const ollamaResult = await OllamaService.tryOllamaAPI(baseUrl, requestData);
+        if (ollamaResult.success) {
+          console.log('✅ 代理连接成功 (Ollama API)');
+          return ollamaResult;
+        }
+
+        console.log('⚠️ 代理连接失败，尝试直接连接...');
+        return OllamaService.tryDirectConnection(baseUrl, requestData);
+      }
+
+      // 生产环境或非开发环境：直接连接
       const openaiResult = await OllamaService.tryOpenAIAPI(baseUrl, requestData);
       if (openaiResult.success) {
         return openaiResult;
       }
 
-      // 如果失败，尝试标准的 Ollama generate 端点
       const ollamaResult = await OllamaService.tryOllamaAPI(baseUrl, requestData);
       if (ollamaResult.success) {
         return ollamaResult;
@@ -390,6 +408,55 @@ export class OllamaService {
       return {
         success: false,
         error: `API调用异常: ${error instanceof Error ? error.message : '未知错误'}`
+      };
+    }
+  }
+
+  /**
+   * 尝试直接连接（降级策略）
+   * @param baseUrl 服务器URL
+   * @param requestData 请求数据
+   * @returns API响应结果
+   */
+  private static async tryDirectConnection(
+    baseUrl: string,
+    requestData: AIReportRequest
+  ): Promise<GenerateReportResult> {
+    console.log('🔄 尝试直接连接到:', baseUrl);
+    
+    // 使用直接连接方式（绕过环境检测）
+    try {
+      // 先尝试 OpenAI 兼容的 API (构造直接URL)
+      const openaiUrl = OllamaService.buildDirectOpenAIChatUrl(baseUrl);
+      const openaiResult = await OllamaService.tryDirectAPICall(openaiUrl, {
+        model: requestData.model,
+        messages: [{ role: "user", content: requestData.prompt }],
+        temperature: requestData.temperature,
+        stream: false
+      }, 'openai');
+      
+      if (openaiResult.success) {
+        console.log('✅ 直接连接成功 (OpenAI API)');
+        return openaiResult;
+      }
+
+      // 尝试标准 Ollama API (构造直接URL)
+      const ollamaUrl = OllamaService.buildDirectApiUrl(baseUrl);
+      const ollamaResult = await OllamaService.tryDirectAPICall(ollamaUrl, requestData, 'ollama');
+      
+      if (ollamaResult.success) {
+        console.log('✅ 直接连接成功 (Ollama API)');
+        return ollamaResult;
+      }
+
+      return {
+        success: false,
+        error: `直接连接失败 - 可能是 CORS 限制或服务不可达。建议设置环境变量 OLLAMA_URL=${baseUrl} 并重启开发服务器`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `直接连接异常: ${error instanceof Error ? error.message : '未知错误'}`
       };
     }
   }
@@ -543,21 +610,11 @@ export class OllamaService {
         mode: import.meta.env.MODE
       });
       
-      // 在开发环境中，检查是否应该使用代理
+      // 在开发环境中，优先使用代理以避免 CORS 问题
       if (import.meta.env.DEV) {
-        const url = new URL(baseUrl);
-        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
-        const proxyUrl = new URL(proxyTarget);
-        
-        // 如果用户配置的端口与代理目标匹配，使用代理
-        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
-          const apiPath = '/api/ollama/v1/chat/completions';
-          console.log(`✅ 使用代理路径: ${apiPath} (目标: ${proxyTarget})`);
-          return apiPath;
-        }
-        
-        // 否则尝试直接连接（可能需要 CORS 处理）
-        console.log(`⚠️ 端口不匹配 - 用户: ${url.port}, 代理: ${proxyUrl.port}, 尝试直接连接`);
+        const apiPath = '/api/ollama/v1/chat/completions';
+        console.log(`✅ 使用代理路径: ${apiPath} (基于用户配置: ${baseUrl})`);
+        return apiPath;
       }
       
       const url = new URL(baseUrl);
@@ -585,21 +642,11 @@ export class OllamaService {
         mode: import.meta.env.MODE
       });
       
-      // 在开发环境中，检查是否应该使用代理
+      // 在开发环境中，优先使用代理以避免 CORS 问题
       if (import.meta.env.DEV) {
-        const url = new URL(baseUrl);
-        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
-        const proxyUrl = new URL(proxyTarget);
-        
-        // 如果用户配置的端口与代理目标匹配，使用代理
-        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
-          const apiPath = '/api/ollama/api/generate';
-          console.log(`✅ 使用代理路径: ${apiPath} (目标: ${proxyTarget})`);
-          return apiPath;
-        }
-        
-        // 否则尝试直接连接（可能需要 CORS 处理）
-        console.log(`⚠️ 端口不匹配 - 用户: ${url.port}, 代理: ${proxyUrl.port}, 尝试直接连接`);
+        const apiPath = '/api/ollama/api/generate';
+        console.log(`✅ 使用代理路径: ${apiPath} (基于用户配置: ${baseUrl})`);
+        return apiPath;
       }
       
       const url = new URL(baseUrl);
@@ -612,6 +659,103 @@ export class OllamaService {
     } catch (error) {
       console.error('❌ buildApiUrl 错误:', error);
       throw new Error(`无效的服务器URL: ${baseUrl}`);
+    }
+  }
+
+  /**
+   * 构造直接连接的 OpenAI Chat URL
+   */
+  private static buildDirectOpenAIChatUrl(baseUrl: string): string {
+    const url = new URL(baseUrl);
+    const pathname = url.pathname.endsWith('/') ? url.pathname : url.pathname + '/';
+    url.pathname = pathname + 'v1/chat/completions';
+    return url.toString();
+  }
+
+  /**
+   * 构造直接连接的 Ollama API URL
+   */
+  private static buildDirectApiUrl(baseUrl: string): string {
+    const url = new URL(baseUrl);
+    const pathname = url.pathname.endsWith('/') ? url.pathname : url.pathname + '/';
+    url.pathname = pathname + 'api/generate';
+    return url.toString();
+  }
+
+  /**
+   * 尝试直接 API 调用
+   */
+  private static async tryDirectAPICall(
+    url: string,
+    requestData: unknown,
+    apiType: 'openai' | 'ollama'
+  ): Promise<GenerateReportResult> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, OllamaService.DEFAULT_TIMEOUT);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${errorText}`
+        };
+      }
+
+      const responseData = await response.json();
+      
+      if (apiType === 'openai') {
+        // OpenAI 格式的响应解析
+        if (responseData.choices && responseData.choices[0] && responseData.choices[0].message) {
+          return {
+            success: true,
+            content: responseData.choices[0].message.content
+          };
+        }
+        return {
+          success: false,
+          error: 'OpenAI API 响应格式无效'
+        };
+      } else {
+        // Ollama 格式的响应解析
+        if (!responseData.response) {
+          return {
+            success: false,
+            error: 'Ollama API 响应格式无效'
+          };
+        }
+        return {
+          success: true,
+          content: responseData.response
+        };
+      }
+
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          return { success: false, error: '请求超时' };
+        }
+        if (error.message.includes('fetch')) {
+          return { success: false, error: '网络连接失败或 CORS 限制' };
+        }
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      };
     }
   }
 
