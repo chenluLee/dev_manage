@@ -26,6 +26,11 @@ export interface Project {
   updatedAt: string; // ISO
   todos: Todo[];
   order: number; // 用于排序的权重字段
+  urls?: Array<{
+    id: string;
+    name: string;
+    url: string;
+  }>;
 }
 
 export type ProjectFilter = "active" | "completed";

@@ -108,7 +108,7 @@ export default function SettingsModal({
 
   const handleAiConfigChange = (field: 'ollamaUrl' | 'modelName' | 'temperature', value: string | number) => {
     const newAiReport = {
-      ollamaUrl: settings.aiReport?.ollamaUrl || "http://localhost:11345",
+      ollamaUrl: settings.aiReport?.ollamaUrl || "http://localhost:11434",
       modelName: settings.aiReport?.modelName || "gpt-oss", 
       temperature: settings.aiReport?.temperature || 0.7,
       [field]: value
@@ -151,7 +151,7 @@ export default function SettingsModal({
 
   const testOllamaConnection = async () => {
     const config = {
-      ollamaUrl: settings.aiReport?.ollamaUrl || "http://localhost:11345",
+      ollamaUrl: settings.aiReport?.ollamaUrl || "http://localhost:11434",
       modelName: settings.aiReport?.modelName || "gpt-oss",
       temperature: settings.aiReport?.temperature || 0.7
     };
@@ -193,13 +193,13 @@ export default function SettingsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby="settings-desc" className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent aria-describedby="settings-desc" className="sm:max-w-lg max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>系统设置</DialogTitle>
           <DialogDescription id="settings-desc">管理数据存储路径、导入导出与其他选项。</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
+        <div className="space-y-6 py-2 flex-1 overflow-y-auto min-h-0">
           <div className="space-y-2">
             <Label>数据存储路径</Label>
             <div className="space-y-3">
@@ -433,9 +433,9 @@ export default function SettingsModal({
                 <Input
                   id="ollamaUrl"
                   type="url"
-                  value={settings.aiReport?.ollamaUrl || "http://localhost:11345"}
+                  value={settings.aiReport?.ollamaUrl || "http://localhost:11434"}
                   onChange={(e) => handleAiConfigChange('ollamaUrl', e.target.value)}
-                  placeholder="http://localhost:11345"
+                  placeholder="http://localhost:11434"
                   className={`w-full ${aiConfigErrors.ollamaUrl ? 'border-red-500' : ''}`}
                 />
                 {aiConfigErrors.ollamaUrl && (
@@ -448,9 +448,19 @@ export default function SettingsModal({
                 <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded border-l-2 border-blue-200">
                   <div className="font-semibold mb-1">端口配置:</div>
                   <div>• Ollama 默认端口: http://localhost:11434</div>
-                  <div>• OpenAI 兼容服务: 通常使用其他端口 (如 11345)</div>
+                  <div>• OpenAI 兼容服务: 通常使用其他端口 (如 11345 等)</div>
                   <div>• 测试连接将自动检测 API 格式</div>
                   <div>• 确保服务已启动: <code className="bg-blue-100 px-1 rounded">ollama serve</code></div>
+                  {import.meta.env.DEV && (
+                    <div className="mt-1 pt-1 border-t border-blue-200">
+                      <div className="text-blue-600">
+                        🔧 开发环境代理: {import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434'}
+                      </div>
+                      <div className="text-xs">
+                        如需修改，设置环境变量 OLLAMA_URL 并重启开发服务器
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -540,7 +550,7 @@ export default function SettingsModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0 border-t pt-4">
           <Button onClick={() => onOpenChange(false)}>关闭</Button>
         </DialogFooter>
       </DialogContent>

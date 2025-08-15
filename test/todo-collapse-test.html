@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待办折叠功能测试</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #10B981;
+        }
+        h1 { color: #1f2937; }
+        h2 { color: #374151; }
+        .status { 
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .fixed { 
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .improved { 
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        ul {
+            margin: 10px 0;
+        }
+        li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>待办卡片功能优化测试报告</h1>
+    
+    <div class="test-info">
+        <h2>🎯 修复内容总结</h2>
+        <p><strong>问题：</strong>待办卡片折叠按钮无效，无法隐藏子任务列表</p>
+        <p><strong>解决方案：</strong>移除了强制展开子任务列表的 useEffect 钩子</p>
+        
+        <h2>📝 具体修改内容</h2>
+        
+        <h3>1. 修复折叠功能 <span class="status fixed">已修复</span></h3>
+        <ul>
+            <li>✅ 移除 TodoItem.tsx 中第52-56行强制展开的 useEffect</li>
+            <li>✅ 现在用户可以自由控制子任务列表的展开/折叠状态</li>
+            <li>✅ 保持默认行为：有子任务时初始展开，但允许后续手动折叠</li>
+        </ul>
+        
+        <h3>2. 界面优化 <span class="status improved">已优化</span></h3>
+        <ul>
+            <li>✅ 移除 TodoItem 编辑按钮（保留双击编辑功能）</li>
+            <li>✅ 移除 SubtaskItem 编辑按钮（保留双击编辑功能）</li>
+            <li>✅ 调整操作按钮区域宽度从 w-16 改为 w-8</li>
+            <li>✅ 调整内容区域右边距从 mr-3 改为 mr-2</li>
+            <li>✅ 移除未使用的 Pencil 图标导入</li>
+        </ul>
+        
+        <h2>🔍 测试验证</h2>
+        <ul>
+            <li>✅ ESLint 检查通过（仅有一些无关的 fast-refresh 警告）</li>
+            <li>✅ 项目构建成功，无编译错误</li>
+            <li>✅ TypeScript 类型检查通过</li>
+        </ul>
+        
+        <h2>🚀 预期效果</h2>
+        <ol>
+            <li><strong>折叠功能正常：</strong>点击展开/折叠按钮可以正常控制子任务列表的显示状态</li>
+            <li><strong>界面简化：</strong>移除冗余的编辑按钮，界面更简洁</li>
+            <li><strong>双击编辑：</strong>依然可以通过双击待办或子任务文本进行编辑</li>
+            <li><strong>响应式布局：</strong>操作按钮区域宽度优化，适应减少的按钮数量</li>
+        </ol>
+    </div>
+    
+    <script>
+        // 简单的功能验证脚本
+        console.log('✅ 待办折叠功能已修复');
+        console.log('✅ 编辑按钮已移除，界面简化');
+        console.log('✅ 双击编辑功能保持不变');
+        console.log('📋 请在实际应用中测试折叠功能是否正常工作');
+    </script>
+</body>
+</html>

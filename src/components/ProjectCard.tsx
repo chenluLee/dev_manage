@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   AlertDialog, 
@@ -14,7 +15,8 @@ import {
   AlertDialogTitle, 
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog";
-import { CheckCircle2, ChevronDown, ChevronUp, Edit3, MoreVertical, Trash2, GripVertical } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CheckCircle2, ChevronDown, ChevronUp, Edit3, MoreVertical, Trash2, GripVertical, Link, Plus, X } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import TodoList from "./TodoList";
@@ -32,6 +34,11 @@ interface Project {
   updatedAt: string;
   todos: Todo[];
   order: number;
+  urls?: Array<{
+    id: string;
+    name: string;
+    url: string;
+  }>;
 }
 
 interface Props {
@@ -84,6 +91,11 @@ export default function ProjectCard(props: Props) {
   const [nameError, setNameError] = useState<string | null>(null);
   const [descError, setDescError] = useState<string | null>(null);
   const [isAddingTodo, setIsAddingTodo] = useState(false);
+  
+  // URL管理相关状态
+  const [isAddingUrl, setIsAddingUrl] = useState(false);
+  const [newUrlName, setNewUrlName] = useState("");
+  const [newUrlValue, setNewUrlValue] = useState("");
   const nameRef = useRef<HTMLInputElement | null>(null);
   const descRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { if (editingName) nameRef.current?.focus(); }, [editingName]);
@@ -106,6 +118,32 @@ export default function ProjectCard(props: Props) {
       return '项目描述不能超过500个字符';
     }
     return null;
+  };
+
+  // URL管理函数
+  const handleAddUrl = () => {
+    if (!newUrlName.trim() || !newUrlValue.trim()) return;
+    
+    const currentUrls = project.urls || [];
+    const newUrl = {
+      id: `url_${Date.now()}`,
+      name: newUrlName.trim(),
+      url: newUrlValue.trim()
+    };
+    
+    props.onUpdateProject({ urls: [...currentUrls, newUrl] });
+    setNewUrlName("");
+    setNewUrlValue("");
+    setIsAddingUrl(false);
+  };
+
+  const handleDeleteUrl = (urlId: string) => {
+    const updatedUrls = (project.urls || []).filter(url => url.id !== urlId);
+    props.onUpdateProject({ urls: updatedUrls });
+  };
+
+  const handleOpenUrl = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   // 搜索高亮功能
@@ -249,9 +287,111 @@ export default function ProjectCard(props: Props) {
               </p>
             )}
 
-              <div className="flex items-center gap-2 pt-1">
-                <Badge variant="secondary" className={cn(project.isCompleted && "bg-success/15 text-success border-success/30")}>{project.isCompleted ? "已结束" : "进行中"}</Badge>
-                <Badge variant="outline">{completed}/{project.todos.length} 已完成</Badge>
+              <div className="flex items-center justify-between pt-1 gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
+                  <Badge variant="secondary" className={cn("whitespace-nowrap", project.isCompleted && "bg-success/15 text-success border-success/30")}>{project.isCompleted ? "已结束" : "进行中"}</Badge>
+                  <Badge variant="outline" className="whitespace-nowrap">{completed}/{project.todos.length} 已完成</Badge>
+                </div>
+                
+                {/* URL快速访问入口 */}
+                <div className={cn("transition-all duration-200 flex-shrink-0", isHovered ? "opacity-100" : "opacity-0")}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs"
+                        title="相关链接"
+                      >
+                        <Link className="h-3 w-3 mr-1" />
+                        相关链接
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80" align="start">
+                      <div className="space-y-3">
+                        <div className="font-semibold text-sm">项目相关链接</div>
+                        
+                        {/* 链接列表 */}
+                        {project.urls && project.urls.length > 0 ? (
+                          <div className="space-y-2">
+                            {project.urls.map((url) => (
+                              <div key={url.id} className="flex items-center justify-between group">
+                                <button
+                                  className="flex-1 text-left text-sm text-primary hover:underline truncate"
+                                  onClick={() => handleOpenUrl(url.url)}
+                                  title={`${url.name}: ${url.url}`}
+                                >
+                                  {url.name}
+                                </button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => handleDeleteUrl(url.id)}
+                                  title="删除链接"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">暂无链接</div>
+                        )}
+                        
+                        {/* 添加链接区域 */}
+                        {isAddingUrl ? (
+                          <div className="space-y-2 pt-2 border-t">
+                            <Input
+                              placeholder="链接名称"
+                              value={newUrlName}
+                              onChange={(e) => setNewUrlName(e.target.value)}
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="链接地址"
+                              value={newUrlValue}
+                              onChange={(e) => setNewUrlValue(e.target.value)}
+                              className="h-8"
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={handleAddUrl}
+                                disabled={!newUrlName.trim() || !newUrlValue.trim()}
+                                className="h-7 px-3"
+                              >
+                                确认
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setIsAddingUrl(false);
+                                  setNewUrlName("");
+                                  setNewUrlValue("");
+                                }}
+                                className="h-7 px-3"
+                              >
+                                取消
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsAddingUrl(true)}
+                            className="w-full h-8"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            添加链接
+                          </Button>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
           </div>

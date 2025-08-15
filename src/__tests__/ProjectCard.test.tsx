@@ -49,6 +49,13 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
+// Mock Popover components
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({ children }: { children: React.ReactNode }) => <div data-testid="popover">{children}</div>,
+  PopoverTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-trigger">{children}</div>,
+  PopoverContent: ({ children }: { children: React.ReactNode }) => <div data-testid="popover-content">{children}</div>,
+}));
+
 describe('ProjectCard', () => {
   const mockProject: Project = {
     id: '1',
@@ -264,6 +271,133 @@ describe('ProjectCard', () => {
       fireEvent.click(toggleButton);
       
       expect(screen.getByText('展开')).toBeInTheDocument();
+    });
+  });
+
+  describe('URL管理功能', () => {
+    it('应该显示相关链接按钮', () => {
+      render(<ProjectCard {...defaultProps} />);
+      
+      expect(screen.getByText('相关链接')).toBeInTheDocument();
+    });
+
+    it('应该在没有链接时显示提示', () => {
+      render(<ProjectCard {...defaultProps} />);
+      
+      expect(screen.getByText('暂无链接')).toBeInTheDocument();
+    });
+
+    it('应该显示已有的链接', () => {
+      const projectWithUrls = {
+        ...mockProject,
+        urls: [
+          { id: 'url1', name: 'GitHub', url: 'https://github.com' },
+          { id: 'url2', name: 'Documentation', url: 'https://docs.example.com' }
+        ]
+      };
+      
+      render(<ProjectCard {...defaultProps} project={projectWithUrls} />);
+      
+      expect(screen.getByText('GitHub')).toBeInTheDocument();
+      expect(screen.getByText('Documentation')).toBeInTheDocument();
+    });
+
+    it('应该显示添加链接按钮', () => {
+      render(<ProjectCard {...defaultProps} />);
+      
+      expect(screen.getByText('添加链接')).toBeInTheDocument();
+    });
+
+    it('应该在点击添加链接后显示输入框', () => {
+      render(<ProjectCard {...defaultProps} />);
+      
+      const addButton = screen.getByText('添加链接');
+      fireEvent.click(addButton);
+      
+      expect(screen.getByPlaceholderText('链接名称')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('链接地址')).toBeInTheDocument();
+    });
+
+    it('应该能够添加新链接', () => {
+      const onUpdateProject = vi.fn();
+      render(<ProjectCard {...defaultProps} onUpdateProject={onUpdateProject} />);
+      
+      // 点击添加链接
+      fireEvent.click(screen.getByText('添加链接'));
+      
+      // 填写链接信息
+      fireEvent.change(screen.getByPlaceholderText('链接名称'), {
+        target: { value: 'Test Link' }
+      });
+      fireEvent.change(screen.getByPlaceholderText('链接地址'), {
+        target: { value: 'https://test.com' }
+      });
+      
+      // 点击确认
+      fireEvent.click(screen.getByText('确认'));
+      
+      expect(onUpdateProject).toHaveBeenCalledWith({
+        urls: [expect.objectContaining({
+          name: 'Test Link',
+          url: 'https://test.com'
+        })]
+      });
+    });
+
+    it('应该能够删除链接', () => {
+      const projectWithUrls = {
+        ...mockProject,
+        urls: [{ id: 'url1', name: 'GitHub', url: 'https://github.com' }]
+      };
+      const onUpdateProject = vi.fn();
+      
+      render(<ProjectCard {...defaultProps} project={projectWithUrls} onUpdateProject={onUpdateProject} />);
+      
+      // 查找删除按钮并点击
+      const deleteButton = screen.getByTitle('删除链接');
+      fireEvent.click(deleteButton);
+      
+      expect(onUpdateProject).toHaveBeenCalledWith({ urls: [] });
+    });
+
+    it('应该在新标签页打开链接', () => {
+      const projectWithUrls = {
+        ...mockProject,
+        urls: [{ id: 'url1', name: 'GitHub', url: 'https://github.com' }]
+      };
+      
+      // Mock window.open
+      const mockOpen = vi.fn();
+      Object.defineProperty(window, 'open', {
+        value: mockOpen,
+        configurable: true
+      });
+      
+      render(<ProjectCard {...defaultProps} project={projectWithUrls} />);
+      
+      // 点击链接
+      fireEvent.click(screen.getByText('GitHub'));
+      
+      expect(mockOpen).toHaveBeenCalledWith('https://github.com', '_blank', 'noopener,noreferrer');
+    });
+
+    it('应该能够取消添加链接', () => {
+      render(<ProjectCard {...defaultProps} />);
+      
+      // 点击添加链接
+      fireEvent.click(screen.getByText('添加链接'));
+      
+      // 填写一些内容
+      fireEvent.change(screen.getByPlaceholderText('链接名称'), {
+        target: { value: 'Test Link' }
+      });
+      
+      // 点击取消
+      fireEvent.click(screen.getByText('取消'));
+      
+      // 应该回到原始状态
+      expect(screen.getByText('添加链接')).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('链接名称')).not.toBeInTheDocument();
     });
   });
 });

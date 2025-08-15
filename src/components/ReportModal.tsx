@@ -173,7 +173,7 @@ export default function ReportModal({ open, onOpenChange, projects, settings, on
   const isAiConfigured = useMemo(() => {
     // 如果 aiReport 为空，使用默认配置进行检查
     const configToCheck = settings.aiReport || {
-      ollamaUrl: "http://localhost:11345",
+      ollamaUrl: "http://localhost:11434",
       modelName: "gpt-oss",
       temperature: 0.7
     };
@@ -201,7 +201,7 @@ export default function ReportModal({ open, onOpenChange, projects, settings, on
 
       // 获取AI配置，如果为空则使用默认值
       const aiConfig = settings.aiReport || {
-        ollamaUrl: "http://localhost:11345",
+        ollamaUrl: "http://localhost:11434",
         modelName: "gpt-oss",
         temperature: 0.7
       };

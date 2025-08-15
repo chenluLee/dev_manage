@@ -309,9 +309,16 @@ export class OllamaService {
    */
   private static buildOpenAIModelsUrl(baseUrl: string): string {
     try {
-      // 在开发环境中，总是使用代理路径以避免 CORS 问题
+      // 在开发环境中，检查是否应该使用代理
       if (import.meta.env.DEV) {
-        return '/api/ollama/v1/models';
+        const url = new URL(baseUrl);
+        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
+        const proxyUrl = new URL(proxyTarget);
+        
+        // 如果用户配置的端口与代理目标匹配，使用代理
+        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
+          return '/api/ollama/v1/models';
+        }
       }
       
       const url = new URL(baseUrl);
@@ -330,9 +337,16 @@ export class OllamaService {
    */
   private static buildTagsUrl(baseUrl: string): string {
     try {
-      // 在开发环境中，总是使用代理路径以避免 CORS 问题
+      // 在开发环境中，检查是否应该使用代理
       if (import.meta.env.DEV) {
-        return '/api/ollama/api/tags';
+        const url = new URL(baseUrl);
+        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
+        const proxyUrl = new URL(proxyTarget);
+        
+        // 如果用户配置的端口与代理目标匹配，使用代理
+        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
+          return '/api/ollama/api/tags';
+        }
       }
       
       const url = new URL(baseUrl);
@@ -526,15 +540,24 @@ export class OllamaService {
       console.log('🔧 buildOpenAIChatUrl 调试信息:', {
         baseUrl,
         isDev: import.meta.env.DEV,
-        mode: import.meta.env.MODE,
-        env: import.meta.env
+        mode: import.meta.env.MODE
       });
       
-      // 在开发环境中，总是使用代理路径以避免 CORS 问题
+      // 在开发环境中，检查是否应该使用代理
       if (import.meta.env.DEV) {
-        const proxyUrl = '/api/ollama/v1/chat/completions';
-        console.log('✅ 使用代理路径:', proxyUrl);
-        return proxyUrl;
+        const url = new URL(baseUrl);
+        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
+        const proxyUrl = new URL(proxyTarget);
+        
+        // 如果用户配置的端口与代理目标匹配，使用代理
+        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
+          const apiPath = '/api/ollama/v1/chat/completions';
+          console.log(`✅ 使用代理路径: ${apiPath} (目标: ${proxyTarget})`);
+          return apiPath;
+        }
+        
+        // 否则尝试直接连接（可能需要 CORS 处理）
+        console.log(`⚠️ 端口不匹配 - 用户: ${url.port}, 代理: ${proxyUrl.port}, 尝试直接连接`);
       }
       
       const url = new URL(baseUrl);
@@ -562,11 +585,21 @@ export class OllamaService {
         mode: import.meta.env.MODE
       });
       
-      // 在开发环境中，总是使用代理路径以避免 CORS 问题
+      // 在开发环境中，检查是否应该使用代理
       if (import.meta.env.DEV) {
-        const proxyUrl = '/api/ollama/api/generate';
-        console.log('✅ 使用代理路径:', proxyUrl);
-        return proxyUrl;
+        const url = new URL(baseUrl);
+        const proxyTarget = import.meta.env.VITE_OLLAMA_PROXY_TARGET || 'http://localhost:11434';
+        const proxyUrl = new URL(proxyTarget);
+        
+        // 如果用户配置的端口与代理目标匹配，使用代理
+        if (url.port === proxyUrl.port && url.hostname === proxyUrl.hostname) {
+          const apiPath = '/api/ollama/api/generate';
+          console.log(`✅ 使用代理路径: ${apiPath} (目标: ${proxyTarget})`);
+          return apiPath;
+        }
+        
+        // 否则尝试直接连接（可能需要 CORS 处理）
+        console.log(`⚠️ 端口不匹配 - 用户: ${url.port}, 代理: ${proxyUrl.port}, 尝试直接连接`);
       }
       
       const url = new URL(baseUrl);
