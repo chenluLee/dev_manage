@@ -38,7 +38,7 @@ interface Props {
 
 export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpdateSubtask, onDeleteSubtask, onReorderSubtasks }: Props) {
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(todo.subtasks.length > 0);
+  const [expanded, setExpanded] = useState(todo.subtasks.length > 0 && !todo.isCompleted);
   const [isHovered, setIsHovered] = useState(false);
   const [text, setText] = useState(todo.text);
   const [isAddingSubtask, setIsAddingSubtask] = useState(false);
@@ -50,6 +50,13 @@ export default function TodoItem({ todo, onUpdate, onDelete, onAddSubtask, onUpd
   const sensors = useDndSensors();
 
   useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  
+  // 监听待办事项完成状态变化，自动调整子任务展开状态
+  useEffect(() => {
+    if (todo.subtasks.length > 0) {
+      setExpanded(!todo.isCompleted);
+    }
+  }, [todo.isCompleted, todo.subtasks.length]);
   
 
   const handleSubtaskDragEnd = (e: DragEndEvent) => {
