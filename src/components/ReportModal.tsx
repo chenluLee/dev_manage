@@ -68,6 +68,7 @@ export default function ReportModal({ open, onOpenChange, projects, settings, on
       if (completedTodos.length > 0) {
         const projectData = {
           projectName: project.name,
+          riskStatus: project.riskStatus,
           todos: completedTodos.map(todo => {
             const completedSubtasks = todo.subtasks.filter(subtask => {
               if (!subtask.completedAt) return false;

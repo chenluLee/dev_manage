@@ -11,6 +11,7 @@ export default function StatusToggle({ value, onChange }: Props) {
   return (
     <div role="tablist" aria-label="项目状态切换" className="inline-flex rounded-lg border bg-background p-1 shadow-sm">
       {([
+        { key: "all", label: "所有项目" },
         { key: "active", label: "未结束项目" },
         { key: "completed", label: "已结束项目" },
       ] as const).map((opt) => (

@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState, useEffect } from "react";
 import { useLocalStorage } from "./useLocalStorage";
-import { Project, Todo, Subtask, AppData, AppSettings } from "@/types";
+import { Project, Todo, Subtask, AppData, AppSettings, getProjectCompletionStatus, migrateProjectStatus } from "@/types";
 import { StorageManager } from "@/managers/StorageManager";
 
 function uid() {
@@ -18,6 +18,7 @@ const demoProjects: Project[] = [
     name: "示例项目 Alpha",
     description: "项目示例：支持待办与子任务，拖拽排序与就地编辑。",
     isCompleted: false,
+    riskStatus: 'attention',
     createdAt: nowISO(),
     updatedAt: nowISO(),
     order: 0,
@@ -51,6 +52,7 @@ const demoProjects: Project[] = [
     name: "示例项目 Beta",
     description: "双击文本即可编辑，支持导入导出。",
     isCompleted: false,
+    riskStatus: 'normal',
     createdAt: nowISO(),
     updatedAt: nowISO(),
     order: 1,
@@ -155,23 +157,36 @@ export function useProjects(storageKey: string) {
       // 检查并修复完成日期
       const { projects: fixedProjects, hasChanges } = fixCompletionDates(loadedProjects);
       
-      setProjectsState(fixedProjects);
+      // 数据迁移：确保所有项目都有 riskStatus
+      const migratedProjects = fixedProjects.map(migrateProjectStatus);
+      const hasMigrationChanges = migratedProjects.some((p, i) => 
+        p.riskStatus !== fixedProjects[i].riskStatus
+      );
       
-      // 如果有修复，保存数据
-      if (hasChanges) {
-        console.log('检测到缺失的完成日期，已自动修复并保存');
-        await saveProjects(fixedProjects);
+      setProjectsState(migratedProjects);
+      
+      // 如果有修复或迁移，保存数据
+      if (hasChanges || hasMigrationChanges) {
+        console.log('检测到数据更新（完成日期修复或状态迁移），已自动保存');
+        await saveProjects(migratedProjects);
       }
       
     } catch (error) {
       console.warn('加载项目数据失败，使用localStorage数据:', error);
       const { projects: fixedProjects, hasChanges } = fixCompletionDates(localProjects);
-      setProjectsState(fixedProjects);
       
-      // 如果有修复，保存数据
-      if (hasChanges) {
-        console.log('检测到缺失的完成日期，已自动修复并保存');
-        await saveProjects(fixedProjects);
+      // 数据迁移：确保所有项目都有 riskStatus
+      const migratedProjects = fixedProjects.map(migrateProjectStatus);
+      const hasMigrationChanges = migratedProjects.some((p, i) => 
+        p.riskStatus !== fixedProjects[i].riskStatus
+      );
+      
+      setProjectsState(migratedProjects);
+      
+      // 如果有修复或迁移，保存数据
+      if (hasChanges || hasMigrationChanges) {
+        console.log('检测到数据更新（完成日期修复或状态迁移），已自动保存');
+        await saveProjects(migratedProjects);
       }
     }
     setIsLoading(false);
@@ -393,8 +408,8 @@ export function useProjects(storageKey: string) {
 
   const computed = useMemo(() => ({
     total: projects.length,
-    active: projects.filter(p => !p.isCompleted).length,
-    completed: projects.filter(p => p.isCompleted).length,
+    active: projects.filter(p => !getProjectCompletionStatus(p)).length,
+    completed: projects.filter(p => getProjectCompletionStatus(p)).length,
   }), [projects]);
 
   // 包装的导入导出函数，支持文件系统存储

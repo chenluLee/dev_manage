@@ -40,7 +40,7 @@ const Index = () => {
   
   const { updateProjectOrder: updateUserPreferenceOrder } = useUserPreferences();
 
-  const [filter, setFilter] = useState<ProjectFilter>("active");
+  const [filter, setFilter] = useState<ProjectFilter>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");

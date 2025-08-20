@@ -16,30 +16,13 @@ import {
   AlertDialogTrigger 
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CheckCircle2, ChevronDown, ChevronUp, Edit3, MoreVertical, Trash2, GripVertical, Link, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Edit3, Trash2, GripVertical, Link, Plus, X } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import TodoList from "./TodoList";
 import { cn } from "@/lib/utils";
 
-interface Subtask { id: string; text: string; isCompleted: boolean; order: number; todoId: string; }
-interface Todo { id: string; text: string; isCompleted: boolean; order: number; projectId: string; subtasks: Subtask[]; }
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  isCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-  todos: Todo[];
-  order: number;
-  urls?: Array<{
-    id: string;
-    name: string;
-    url: string;
-  }>;
-}
+import { Project, Todo, Subtask, RiskStatus, isProjectCompleted } from "@/types";
 
 interface Props {
   project: Project;
@@ -69,6 +52,63 @@ export default function ProjectCard(props: Props) {
   
   const [isHovered, setIsHovered] = useState(false);
   const completed = project.todos.filter(t => t.isCompleted).length;
+
+  // 风险状态相关配置
+  const riskStatusConfig = {
+    high: { label: '高风险', color: 'bg-red-500', hoverColor: 'hover:bg-red-600', type: 'filled' },
+    attention: { label: '注意', color: 'bg-yellow-500', hoverColor: 'hover:bg-yellow-600', type: 'filled' },
+    normal: { label: '正常', color: 'bg-green-500', hoverColor: 'hover:bg-green-600', type: 'filled' },
+    ahead: { label: '超前', color: 'bg-blue-500', hoverColor: 'hover:bg-blue-600', type: 'filled' },
+    paused: { label: '暂停', color: 'bg-gray-500', hoverColor: 'hover:bg-gray-600', type: 'filled' },
+    completed: { label: '已完成', color: 'border-2 border-green-500 bg-green-50/50', hoverColor: 'hover:bg-green-100/70', type: 'ring' }
+  };
+
+  const activeStatusOrder: RiskStatus[] = ['normal', 'attention', 'high', 'ahead', 'paused'];
+
+  // 单击/双击防抖处理
+  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 切换风险状态的函数
+  const handleRiskStatusClick = (event: React.MouseEvent) => {
+    const currentStatus = project.riskStatus || 'normal';
+    
+    // 如果是双击事件
+    if (event.detail === 2) {
+      // 清除单击定时器，防止单击逻辑执行
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+      }
+      
+      // 执行双击逻辑：切换完成状态
+      if (currentStatus === 'completed') {
+        props.onUpdateProject({ riskStatus: 'normal' });
+      } else {
+        props.onUpdateProject({ riskStatus: 'completed' });
+      }
+      return;
+    }
+    
+    // 单击事件：使用延时来避免与双击冲突
+    if (event.detail === 1) {
+      clickTimerRef.current = setTimeout(() => {
+        // 单击逻辑：在进行中状态之间循环
+        if (currentStatus === 'completed') {
+          props.onUpdateProject({ riskStatus: 'normal' });
+        } else {
+          const currentIndex = activeStatusOrder.indexOf(currentStatus);
+          const nextIndex = (currentIndex + 1) % activeStatusOrder.length;
+          const nextStatus = activeStatusOrder[nextIndex];
+          props.onUpdateProject({ riskStatus: nextStatus });
+        }
+        clickTimerRef.current = null;
+      }, 200); // 200ms延时，足够区分单击和双击
+    }
+  };
+
+  // 获取当前状态配置
+  const currentRiskStatus = project.riskStatus || 'normal';
+  const currentConfig = riskStatusConfig[currentRiskStatus];
 
   // 集成拖拽功能
   const {
@@ -100,6 +140,15 @@ export default function ProjectCard(props: Props) {
   const descRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => { if (editingName) nameRef.current?.focus(); }, [editingName]);
   useEffect(() => { if (editingDesc) descRef.current?.focus(); }, [editingDesc]);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+      }
+    };
+  }, []);
 
   // 验证项目名称
   const validateName = (name: string): string | null => {
@@ -179,6 +228,28 @@ export default function ProjectCard(props: Props) {
       <Card className={cn("bg-card/80 backdrop-blur-sm border-border hover:shadow-lg", "hover:shadow-[var(--shadow-elegant)]", isDragging && "rotate-2 scale-105")}>
         <CardHeader className="flex flex-row items-start justify-between gap-2">
           <div className="flex items-start gap-2 flex-1 min-w-0">
+            {/* 风险状态指示灯 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleRiskStatusClick}
+                  className={cn(
+                    "flex-shrink-0 mt-1 w-3 h-3 rounded-full transition-all duration-200 cursor-pointer",
+                    currentConfig.type === 'ring' 
+                      ? `${currentConfig.color} ${currentConfig.hoverColor}` 
+                      : `${currentConfig.color} ${currentConfig.hoverColor} shadow-sm`
+                  )}
+                  aria-label={`当前状态: ${currentConfig.label}，点击切换状态，双击切换完成状态`}
+                />
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>{currentConfig.label}</span>
+                <div className="text-xs text-muted-foreground mt-1">
+                  单击切换 • 双击{currentRiskStatus === 'completed' ? '取消' : ''}完成
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
             {/* 拖拽手柄 */}
             <div 
               {...attributes} 
@@ -289,7 +360,7 @@ export default function ProjectCard(props: Props) {
 
               <div className="flex items-center justify-between pt-1 gap-2">
                 <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
-                  <Badge variant="secondary" className={cn("whitespace-nowrap", project.isCompleted && "bg-success/15 text-success border-success/30")}>{project.isCompleted ? "已结束" : "进行中"}</Badge>
+                  <Badge variant="secondary" className={cn("whitespace-nowrap", currentRiskStatus === 'completed' && "bg-success/15 text-success border-success/30")}>{currentRiskStatus === 'completed' ? "已结束" : "进行中"}</Badge>
                   <Badge variant="outline" className="whitespace-nowrap">{completed}/{project.todos.length} 已完成</Badge>
                 </div>
                 
@@ -396,17 +467,8 @@ export default function ProjectCard(props: Props) {
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="切换状态" onClick={() => props.onUpdateProject({ isCompleted: !project.isCompleted })}>
-                  <CheckCircle2 className={cn("h-4 w-4", project.isCompleted ? "text-success" : "text-muted-foreground")} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>切换项目状态</TooltipContent>
-            </Tooltip>
-            
             {/* 操作按钮 - 悬停时从右侧滑入 */}
-            <div className={cn("expand-slide flex items-center gap-1 overflow-hidden", isHovered || editingName || editingDesc ? "w-20 opacity-100" : "w-0 opacity-0")}>
+            <div className={cn("expand-slide flex items-center gap-1 overflow-hidden", isHovered || editingName || editingDesc ? "w-10 opacity-100" : "w-0 opacity-0")}>
               <AlertDialog>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -436,9 +498,6 @@ export default function ProjectCard(props: Props) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button variant="ghost" size="icon" aria-label="更多" className="transition-colors duration-200">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </CardHeader>

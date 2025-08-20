@@ -1,5 +1,5 @@
 import ProjectCard from "./ProjectCard";
-import { Project, Todo, Subtask } from "@/types";
+import { Project, Todo, Subtask, ProjectFilter, getProjectCompletionStatus } from "@/types";
 import { 
   DndContext, 
   DragOverlay, 
@@ -17,7 +17,7 @@ import { useState } from "react";
 
 interface Props {
   projects: Project[];
-  filter: "active" | "completed";
+  filter: ProjectFilter;
   onAddTodo: (projectId: string, text: string) => void;
   onUpdateProject: (projectId: string, patch: Partial<Project>) => void;
   onDeleteProject: (projectId: string) => void;
@@ -54,7 +54,10 @@ export default function ProjectGrid({
 
   // 过滤并排序项目
   const filtered = sortProjectsByOrder(
-    projects.filter(p => filter === 'active' ? !p.isCompleted : p.isCompleted)
+    projects.filter(p => {
+      if (filter === 'all') return true;
+      return filter === 'active' ? !getProjectCompletionStatus(p) : getProjectCompletionStatus(p);
+    })
   );
 
   // 拖拽开始

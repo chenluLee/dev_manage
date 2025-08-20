@@ -17,6 +17,8 @@ export interface Todo {
   completedAt?: string; // ISO 8601 格式的完成时间戳
 }
 
+export type RiskStatus = 'high' | 'attention' | 'normal' | 'ahead' | 'paused' | 'completed';
+
 export interface Project {
   id: string;
   name: string;
@@ -26,6 +28,7 @@ export interface Project {
   updatedAt: string; // ISO
   todos: Todo[];
   order: number; // 用于排序的权重字段
+  riskStatus?: RiskStatus; // 项目风险状态：高风险(红色)、注意(橙色)、正常(绿色)、超前(蓝色)、暂停(灰色)、已完成(绿色圆环)
   urls?: Array<{
     id: string;
     name: string;
@@ -33,7 +36,7 @@ export interface Project {
   }>;
 }
 
-export type ProjectFilter = "active" | "completed";
+export type ProjectFilter = "all" | "active" | "completed";
 
 export interface AppSettings {
   storagePath?: string;          // 存储路径
@@ -86,6 +89,7 @@ export interface ReportData {
   dateRange: { start: string; end: string };
   completedItems: {
     projectName: string;
+    riskStatus?: RiskStatus; // 项目风险状态
     todos: Array<{
       content: string;
       completedAt: string;
@@ -135,3 +139,27 @@ export interface GenerateReportResult {
   content?: string;
   error?: string;
 }
+
+// 状态转换工具函数
+export const isProjectCompleted = (project: Project): boolean => {
+  return project.riskStatus === 'completed';
+};
+
+export const getProjectCompletionStatus = (project: Project): boolean => {
+  // 向后兼容：优先使用 riskStatus，回退到 isCompleted
+  if (project.riskStatus) {
+    return project.riskStatus === 'completed';
+  }
+  return project.isCompleted;
+};
+
+export const migrateProjectStatus = (project: Project): Project => {
+  // 如果没有 riskStatus，根据 isCompleted 设置默认值
+  if (!project.riskStatus) {
+    return {
+      ...project,
+      riskStatus: project.isCompleted ? 'completed' : 'normal'
+    };
+  }
+  return project;
+};

@@ -55,6 +55,7 @@ ${detailedContent}
 
 ### 3. 重点项目进展
 - 按项目分类展示主要成果
+- 根据项目状态标识分析项目健康度和风险情况
 - 突出项目的业务价值和技术亮点
 - 说明遇到的挑战和解决方案
 
@@ -96,6 +97,30 @@ function buildDataSummary(reportData: ReportData): string {
       const avgSubtasksPerTask = statistics.totalSubtasks / statistics.totalTodos;
       summary += `- 平均每任务细分：${avgSubtasksPerTask.toFixed(1)}个子任务\n`;
     }
+
+    // 统计项目风险状态分布
+    const riskStatusMap: Record<string, string> = {
+      'high': '高风险',
+      'attention': '需关注', 
+      'normal': '正常',
+      'ahead': '超前进展',
+      'paused': '暂停'
+    };
+    
+    const statusCount = completedItems.reduce((acc, item) => {
+      if (item.riskStatus) {
+        const statusName = riskStatusMap[item.riskStatus] || item.riskStatus;
+        acc[statusName] = (acc[statusName] || 0) + 1;
+      } else {
+        acc['未设置'] = (acc['未设置'] || 0) + 1;
+      }
+      return acc;
+    }, {} as Record<string, number>);
+
+    const statusSummary = Object.entries(statusCount)
+      .map(([status, count]) => `${status}(${count}个)`)
+      .join('、');
+    summary += `- 项目状态分布：${statusSummary}\n`;
   }
   
   return summary;
@@ -111,10 +136,21 @@ function buildDetailedContent(reportData: ReportData): string {
     return "在指定时间范围内暂无完成的项目和任务。";
   }
 
+  const riskStatusMap: Record<string, string> = {
+    'high': '🔴 高风险',
+    'attention': '🟡 需关注', 
+    'normal': '🟢 正常',
+    'ahead': '🔵 超前进展',
+    'paused': '⚫ 暂停'
+  };
+
   let content = "";
   
   reportData.completedItems.forEach((project, index) => {
-    content += `\n**项目 ${index + 1}：${project.projectName}**\n`;
+    const statusIndicator = project.riskStatus 
+      ? ` (${riskStatusMap[project.riskStatus] || project.riskStatus})` 
+      : '';
+    content += `\n**项目 ${index + 1}：${project.projectName}${statusIndicator}**\n`;
     
     project.todos.forEach((todo, todoIndex) => {
       const completedDate = format(parseISO(todo.completedAt), 'MM月dd日', { locale: zhCN });
